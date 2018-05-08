@@ -39,17 +39,15 @@ import java.util.*;
 public class InvokeCodeDemo {
     public static void main(String[] args) {
         try {
-            OntSdk ontSdk = getOntSdk();
-            //System.out.println(ontSdk.getWalletMgr().getWallet());
+            OntSdk ontSdk = Base.getOntSdk();
 
-            InputStream is = new FileInputStream("C:\\ZX\\IdContract.abi.json");
+            InputStream is = new FileInputStream("/Users/lianshang/Downloads/wallet/ont/hello_abi.json");
             byte[] bys = new byte[is.available()];
             is.read(bys);
             is.close();
             String abi = new String(bys);
 
             AbiInfo abiinfo = JSON.parseObject(abi, AbiInfo.class);
-//            System.out.println("codeHash:"+abiinfo.getHash());
             System.out.println("Entrypoint:" + abiinfo.getEntrypoint());
             System.out.println("Functions:" + abiinfo.getFunctions());
 
@@ -83,23 +81,4 @@ public class InvokeCodeDemo {
         }
     }
 
-
-    public static OntSdk getOntSdk() throws Exception {
-        String ip = "http://127.0.0.1";
-//        String ip = "http://54.222.182.88;
-//        String ip = "http://101.132.193.149";
-//        String ip = " http://139.219.108.204";
-        String restUrl = ip + ":" + "20334";
-        String rpcUrl = ip + ":" + "20386";
-        String wsUrl = ip + ":" + "20385";
-
-        OntSdk wm = OntSdk.getInstance();
-        wm.setRpc(rpcUrl);
-        wm.setRestful(restUrl);
-        wm.setDefaultConnect(wm.getRestful());
-
-        wm.openWalletFile("InvokeSmartCodeDemo.json");//803ca638069742da4b6871fe3d7f78718eeee78a
-        wm.setCodeAddress("803ca638069742da4b6871fe3d7f78718eeee78a");//80e7d2fc22c24c466f44c7688569cc6e6d6c6f92
-        return wm;
-    }
 }

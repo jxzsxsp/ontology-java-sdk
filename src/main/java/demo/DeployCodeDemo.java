@@ -46,21 +46,22 @@ import com.github.ontio.OntSdk;
 import java.io.FileInputStream;
 import java.io.InputStream;
 
-
 /**
- *
+ * @Description 发布智能合约Demo
+ * @Author Sean.Xiao
+ * @Date 2018/5/8 下午7:42
  */
 public class DeployCodeDemo {
+
     public static void main(String[] args) {
         try {
-            OntSdk ontSdk = getOntSdk();
+            OntSdk ontSdk = Base.getOntSdk();
 
-            InputStream is = new FileInputStream("C:\\ZX\\IdContract.avm");//IdContract
+            InputStream is = new FileInputStream("/Users/lianshang/Downloads/wallet/ont/IdContract.avm");
             byte[] bys = new byte[is.available()];
             is.read(bys);
             is.close();
 
-            //code
             String code = "";
             code = Helper.toHexString(bys);
             System.out.println("Code:" + Helper.toHexString(bys));
@@ -68,7 +69,7 @@ public class DeployCodeDemo {
 
             ontSdk.setCodeAddress(Helper.getCodeAddress(code, VmType.NEOVM.value()));
 
-            Transaction tx = ontSdk.getSmartcodeTx().makeDeployCodeTransaction(code, true, "name", "1.0", "1", "1", "1", VmType.NEOVM.value());
+            Transaction tx = ontSdk.getSmartcodeTx().makeDeployCodeTransaction(code, true, "Hello", "0.0.1", "Sean.Xiao", "jxzsxsp@qq.com", "测试智能合约", VmType.NEOVM.value());
             String txHex = Helper.toHexString(tx.toArray());
             System.out.println(txHex);
             ontSdk.getConnectMgr().sendRawTransaction(txHex);
@@ -83,21 +84,4 @@ public class DeployCodeDemo {
         }
     }
 
-    public static OntSdk getOntSdk() throws Exception {
-        String ip = "http://127.0.0.1";
-//        String ip = "http://54.222.182.88;
-//        String ip = "http://139.219.108.204";
-        String restUrl = ip + ":" + "20334";
-        String rpcUrl = ip + ":" + "20386";
-        String wsUrl = ip + ":" + "20385";
-
-        OntSdk wm = OntSdk.getInstance();
-        wm.setRpc(rpcUrl);
-        wm.setRestful(restUrl);
-        wm.setDefaultConnect(wm.getRestful());
-
-        wm.openWalletFile("DeployDemo.json");
-
-        return wm;
-    }
 }
