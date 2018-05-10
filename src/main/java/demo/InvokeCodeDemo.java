@@ -51,20 +51,20 @@ public class InvokeCodeDemo {
             System.out.println("Entrypoint:" + abiinfo.getEntrypoint());
             System.out.println("Functions:" + abiinfo.getFunctions());
 
+            List<Identity> identities = ontSdk.getWalletMgr().getIdentitys();
 
-            if (ontSdk.getWalletMgr().getIdentitys().size() == 0) {
+            if (identities.size() == 0) {
                 Map map = new HashMap<>();
                 map.put("test", "value00");
                 Identity did = ontSdk.getOntIdTx().sendRegister("passwordtest");
             }
-            Identity did = ontSdk.getWalletMgr().getIdentitys().get(0);
+            Identity did = identities.get(0);
             System.out.println(did.ontid);
             System.out.println("did hex:" + Helper.toHexString(did.ontid.getBytes()) + "  " + Helper.toHexString(did.ontid.getBytes()).length());
             System.out.println();
 
             String ddo = ontSdk.getOntIdTx().sendGetDDO(did.ontid);
             System.out.println("Ddo:" + ddo);
-            System.exit(0);
 
             AccountInfo info = ontSdk.getWalletMgr().getAccountInfo(did.ontid, "passwordtest");
             AbiFunction func = abiinfo.getFunction("AddAttribute");

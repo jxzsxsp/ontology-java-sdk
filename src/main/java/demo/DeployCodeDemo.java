@@ -57,7 +57,7 @@ public class DeployCodeDemo {
         try {
             OntSdk ontSdk = Base.getOntSdk();
 
-            InputStream is = new FileInputStream("/Users/lianshang/Downloads/wallet/ont/IdContract.avm");
+            InputStream is = new FileInputStream("/Users/lianshang/Downloads/wallet/ont/hello_nvm");
             byte[] bys = new byte[is.available()];
             is.read(bys);
             is.close();
@@ -69,7 +69,7 @@ public class DeployCodeDemo {
 
             ontSdk.setCodeAddress(Helper.getCodeAddress(code, VmType.NEOVM.value()));
 
-            Transaction tx = ontSdk.getSmartcodeTx().makeDeployCodeTransaction(code, true, "Hello", "0.0.1", "Sean.Xiao", "jxzsxsp@qq.com", "测试智能合约", VmType.NEOVM.value());
+            Transaction tx = ontSdk.getSmartcodeTx().makeDeployCodeTransaction(code, true, "Hello", "0.0.2", "Sean.Xiao", "jxzsxsp@qq.com", "测试智能合约", VmType.NEOVM.value());
             String txHex = Helper.toHexString(tx.toArray());
             System.out.println(txHex);
             ontSdk.getConnectMgr().sendRawTransaction(txHex);
