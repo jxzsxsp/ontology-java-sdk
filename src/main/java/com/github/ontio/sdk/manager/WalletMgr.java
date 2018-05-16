@@ -381,6 +381,9 @@ public class WalletMgr {
             case SHA256WITHECDSA:
                 acct = new Account("ECDSA", new Object[]{Curve.P256.toString()}, "aes-256-ctr", "SHA256withECDSA", "sha256");
                 break;
+            case SM3WITHSM2:
+                acct = new Account("SM2", new Object[]{Curve.SM2P256V1.toString()}, "aes-256-ctr", "SM3withSM2", "sha256");
+                break;
             default:
                 throw new SDKException(ErrorCode.OtherError("scheme type error"));
         }
@@ -422,7 +425,7 @@ public class WalletMgr {
         return account;
     }
 
-    private com.github.ontio.account.Account getAccountByAddress(Address address, String password) {
+    private com.github.ontio.account.Account getAccountByAddress(Address address, String password) throws Exception {
         try {
             for (Account e : wallet.getAccounts()) {
                 if (e.address.equals(address.toBase58())) {
@@ -447,7 +450,7 @@ public class WalletMgr {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw e;
         }
         throw new SDKRuntimeException(ErrorCode.GetAccountByAddressErr);
     }

@@ -22,6 +22,7 @@ package com.github.ontio.common;
 import com.github.ontio.crypto.Base58;
 import com.github.ontio.crypto.Digest;
 import com.github.ontio.io.BinaryWriter;
+import com.github.ontio.sdk.exception.SDKException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -87,19 +88,15 @@ public class Address extends UIntBase implements Comparable<Address> {
     }
 
     public static Address addressFromPubKey(byte[] publicKey) {
-        try {
-            byte[] bys = Digest.hash160(publicKey);
-            bys[0] = 0x01;
-            Address u160 = new Address(bys);
-            return u160;
-        } catch (Exception e) {
-            throw new UnsupportedOperationException(e);
-        }
+        byte[] bys = Digest.hash160(publicKey);
+        bys[0] = 0x01;
+        Address u160 = new Address(bys);
+        return u160;
     }
 
     public static Address addressFromMultiPubKeys(int m, byte[]... publicKeys) throws Exception {
         if (m <= 0 || m > publicKeys.length || publicKeys.length > 24) {
-            throw new IllegalArgumentException();
+            throw new SDKException(ErrorCode.ParamError);
         }
         try (ByteArrayOutputStream ms = new ByteArrayOutputStream()) {
             try (BinaryWriter writer = new BinaryWriter(ms)) {
@@ -108,7 +105,6 @@ public class Address extends UIntBase implements Comparable<Address> {
 
                 Arrays.sort(publicKeys, (a, b) -> Helper.toHexString(a).compareTo(Helper.toHexString(b)));
                 for (int i = 0; i < publicKeys.length; i++) {
-                    System.out.println(Helper.toHexString(publicKeys[i]));
                     writer.writeVarBytes(publicKeys[i]);
                 }
                 writer.flush();
@@ -118,7 +114,7 @@ public class Address extends UIntBase implements Comparable<Address> {
                 return u160;
             }
         } catch (IOException ex) {
-            throw new UnsupportedOperationException(ex);
+            throw new SDKException(ErrorCode.UnSupportOperation);
         }
     }
 
@@ -131,13 +127,13 @@ public class Address extends UIntBase implements Comparable<Address> {
         return Base58.encode(data);
     }
 
-    public static Address decodeBase58(String address) {
+    public static Address decodeBase58(String address) throws SDKException {
         byte[] data = Base58.decode(address);
         if (data.length != 25) {
-            throw new IllegalArgumentException();
+            throw new SDKException(ErrorCode.ParamError+"address length is wrong");
         }
         if (data[0] != COIN_VERSION) {
-            throw new IllegalArgumentException();
+            throw new SDKException(ErrorCode.ParamError);
         }
         byte[] checksum = Digest.sha256(Digest.sha256(data, 0, 21));
         for (int i = 0; i < 4; i++) {
