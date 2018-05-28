@@ -17,36 +17,26 @@
  *
  */
 
-package com.github.ontio.sdk.manager;
+package com.github.ontio.smartcontract.neovm;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.github.ontio.OntSdk;
-import com.github.ontio.account.Account;
 import com.github.ontio.common.Address;
 import com.github.ontio.common.ErrorCode;
 import com.github.ontio.core.VmType;
-import com.github.ontio.core.asset.*;
-import com.github.ontio.core.payload.Vote;
-import com.github.ontio.core.transaction.Attribute;
-import com.github.ontio.core.transaction.AttributeUsage;
 import com.github.ontio.core.transaction.Transaction;
 import com.github.ontio.sdk.abi.AbiFunction;
 import com.github.ontio.sdk.abi.AbiInfo;
 import com.github.ontio.sdk.exception.SDKException;
-import com.github.ontio.sdk.info.AccountInfo;
-import org.bouncycastle.math.ec.ECPoint;
-
-import java.math.BigInteger;
-import java.util.Arrays;
-import java.util.UUID;
 
 
 /**
  *
  */
-public class Nep5Tx {
+public class Nep5 {
     private OntSdk sdk;
-    private String contractAddr = null;
+    private String contractAddress = null;
     private String nep5abi = "{\"hash\":\"0xd17d91a831c094c1fd8d8634b8cd6fa9fbaedc99\",\"entrypoint\":\"Main\"," +
             "\"functions\":[{\"name\":\"Name\",\"parameters\":[],\"returntype\":\"String\"}," +
             "{\"name\":\"Symbol\",\"parameters\":[],\"returntype\":\"String\"}," +
@@ -58,42 +48,41 @@ public class Nep5Tx {
             "{\"name\":\"BalanceOf\",\"parameters\":[{\"name\":\"address\",\"type\":\"ByteArray\"}],\"returntype\":\"Integer\"}]," +
             "\"events\":[{\"name\":\"transfer\",\"parameters\":[{\"name\":\"arg1\",\"type\":\"ByteArray\"},{\"name\":\"arg2\",\"type\":\"ByteArray\"},{\"name\":\"arg3\",\"type\":\"Integer\"}],\"returntype\":\"Void\"}]}";
 
-    public Nep5Tx(OntSdk sdk) {
+    public Nep5(OntSdk sdk) {
         this.sdk = sdk;
     }
 
-    public void setCodeAddress(String codeHash) {
-        this.contractAddr = codeHash.replace("0x", "");
+    public void setContractAddress(String codeHash) {
+        this.contractAddress = codeHash.replace("0x", "");
     }
 
-    public String getCodeAddress() {
-        return contractAddr;
+    public String getContractAddress() {
+        return contractAddress;
     }
 
-    public String sendInit() throws Exception {
-        return sendInit(false);
+    public String sendInit(String payer,String password,long gaslimit,long gas) throws Exception {
+        return (String)sendInit(payer,password,gaslimit,gas,false);
     }
 
-    public String sendInitPreExec() throws Exception {
-        return sendInit(true);
+    public long sendInitGetGasLimit() throws Exception {
+        return (long)sendInit(null,null,0,0,true);
     }
 
-    public String sendInit(boolean preExec) throws Exception {
-        if (contractAddr == null) {
+    private Object sendInit(String payer,String password,long gaslimit,long gas,boolean preExec) throws Exception {
+        if (contractAddress == null) {
             throw new SDKException(ErrorCode.NullCodeHash);
         }
         AbiInfo abiinfo = JSON.parseObject(nep5abi, AbiInfo.class);
         AbiFunction func = abiinfo.getFunction("Init");
         func.name = "init";
-        if (preExec) {
-            String result = (String) sdk.getSmartcodeTx().sendInvokeSmartCodeWithNoSignPreExec(func, VmType.NEOVM.value());
-            if (Integer.parseInt(result) > 0) {
+        Object obj = sdk.neovm().sendTransaction(contractAddress,payer,password,gaslimit,gas,func,preExec);
+        if(preExec) {
+            if (Integer.parseInt(((JSONObject) obj).getString("Result")) != 1){
                 throw new SDKException(ErrorCode.OtherError("sendRawTransaction PreExec error"));
             }
-            return result;
-        } else {
-            return sdk.getSmartcodeTx().sendInvokeSmartCodeWithNoSign(func, VmType.NEOVM.value());
+            return ((JSONObject) obj).getLong("Gas");
         }
+        return obj;
     }
 
 
@@ -105,92 +94,96 @@ public class Nep5Tx {
      * @return
      * @throws Exception
      */
-    public String sendTransfer(String sendAddr, String password, String recvAddr, int amount) throws Exception {
-        return sendTransfer(sendAddr, password, recvAddr, amount, false);
+    public String sendTransfer(String sendAddr, String password, String recvAddr, long amount,long gaslimit,long gas) throws Exception {
+        return (String)sendTransfer(sendAddr, password, recvAddr, amount,gaslimit,gas, false);
     }
 
-    public String sendTransferPreExec(String sendAddr, String password, String recvAddr, int amount) throws Exception {
-        return sendTransfer(sendAddr, password, recvAddr, amount, true);
+    public long sendTransferGetGasLimit(String sendAddr, String password, String recvAddr, long amount) throws Exception {
+        return (long)sendTransfer(sendAddr, password, recvAddr, amount,0,0, true);
     }
 
-    public String sendTransfer(String sendAddr, String password, String recvAddr, int amount, boolean preExec) throws Exception {
-        if (contractAddr == null) {
+    private Object sendTransfer(String sendAddr, String password, String recvAddr, long amount,long gaslimit, long gas,boolean preExec) throws Exception {
+        if (contractAddress == null) {
             throw new SDKException(ErrorCode.NullCodeHash);
         }
         AbiInfo abiinfo = JSON.parseObject(nep5abi, AbiInfo.class);
         AbiFunction func = abiinfo.getFunction("Transfer");
         func.name = "transfer";
         func.setParamsValue(Address.decodeBase58(sendAddr).toArray(), Address.decodeBase58(recvAddr).toArray(), amount);
+        if(preExec) {
+            byte[] params = BuildParams.serializeAbiFunction(func);
 
-        if (preExec) {
-            String result = (String) sdk.getSmartcodeTx().sendInvokeSmartCodeWithSignPreExec(sendAddr, password, func, VmType.NEOVM.value());
-            if (Integer.parseInt(result) > 0) {
+            Transaction tx = sdk.vm().makeInvokeCodeTransaction(getContractAddress(), null, params, VmType.NEOVM.value(), null,0, 0);
+            sdk.signTx(tx, sendAddr, password);
+            Object obj = sdk.getConnect().sendRawTransactionPreExec(tx.toHexString());
+            if (Integer.parseInt(((JSONObject) obj).getString("Result")) != 1){
                 throw new SDKException(ErrorCode.OtherError("sendRawTransaction PreExec error"));
             }
-            return result;
-        } else {
-            return sdk.getSmartcodeTx().sendInvokeSmartCodeWithSign(sendAddr, password, func, VmType.NEOVM.value());
+            return ((JSONObject) obj).getLong("Gas");
         }
+        Object obj = sdk.neovm().sendTransaction(contractAddress,sendAddr,password,gaslimit,gas,func, preExec);
+        return obj;
     }
 
-    public String sendBalanceOf(String addr) throws Exception {
-        if (contractAddr == null) {
+    public String queryBalanceOf(String addr) throws Exception {
+        if (contractAddress == null) {
             throw new SDKException(ErrorCode.NullCodeHash);
         }
         AbiInfo abiinfo = JSON.parseObject(nep5abi, AbiInfo.class);
         AbiFunction func = abiinfo.getFunction("BalanceOf");
         func.name = "balanceOf";
         func.setParamsValue(Address.decodeBase58(addr).toArray());
-        String result = (String) sdk.getSmartcodeTx().sendInvokeSmartCodeWithNoSignPreExec(func, VmType.NEOVM.value());
-        return result;
+        Object obj =  sdk.neovm().sendTransaction(contractAddress,null,null,0,0,func, true);
+        return ((JSONObject) obj).getString("Result");
     }
 
-    public String sendTotalSupply() throws Exception {
-        if (contractAddr == null) {
+    public String queryTotalSupply() throws Exception {
+        if (contractAddress == null) {
             throw new SDKException(ErrorCode.NullCodeHash);
         }
         AbiInfo abiinfo = JSON.parseObject(nep5abi, AbiInfo.class);
         AbiFunction func = abiinfo.getFunction("TotalSupply");
         func.name = "totalSupply";
         func.setParamsValue();
-        String result = (String) sdk.getSmartcodeTx().sendInvokeSmartCodeWithNoSignPreExec(func, VmType.NEOVM.value());
-        return result;
+        Object obj =   sdk.neovm().sendTransaction(contractAddress,null,null,0,0,func, true);
+        return ((JSONObject) obj).getString("Result");
     }
 
-    public String sendName() throws Exception {
-        if (contractAddr == null) {
+    public String queryName() throws Exception {
+        if (contractAddress == null) {
             throw new SDKException(ErrorCode.NullCodeHash);
         }
         AbiInfo abiinfo = JSON.parseObject(nep5abi, AbiInfo.class);
         AbiFunction func = abiinfo.getFunction("Name");
         func.name = "name";
         func.setParamsValue();
-        String result = (String) sdk.getSmartcodeTx().sendInvokeSmartCodeWithNoSignPreExec(func, VmType.NEOVM.value());
-        return result;
+        Object obj =   sdk.neovm().sendTransaction(contractAddress,null,null,0,0,func, true);
+        return ((JSONObject) obj).getString("Result");
     }
 
-    public String sendDecimals() throws Exception {
-        if (contractAddr == null) {
+    public String queryDecimals() throws Exception {
+        if (contractAddress == null) {
             throw new SDKException(ErrorCode.NullCodeHash);
         }
         AbiInfo abiinfo = JSON.parseObject(nep5abi, AbiInfo.class);
         AbiFunction func = abiinfo.getFunction("Decimals");
         func.name = "decimals";
         func.setParamsValue();
-        String result = (String) sdk.getSmartcodeTx().sendInvokeSmartCodeWithNoSignPreExec(func, VmType.NEOVM.value());
-        return result;
+        Object obj =   sdk.neovm().sendTransaction(contractAddress,null,null,0,0,func, true);
+        return ((JSONObject) obj).getString("Result");
     }
 
-    public String sendSymbol() throws Exception {
-        if (contractAddr == null) {
+    public String querySymbol() throws Exception {
+        if (contractAddress == null) {
             throw new SDKException(ErrorCode.NullCodeHash);
         }
         AbiInfo abiinfo = JSON.parseObject(nep5abi, AbiInfo.class);
         AbiFunction func = abiinfo.getFunction("Symbol");
         func.name = "symbol";
         func.setParamsValue();
-        String result = (String) sdk.getSmartcodeTx().sendInvokeSmartCodeWithNoSignPreExec(func, VmType.NEOVM.value());
-        return result;
+        Object obj =   sdk.neovm().sendTransaction(contractAddress,null,null,0,0,func, true);
+        return ((JSONObject) obj).getString("Result");
     }
+
 
 }

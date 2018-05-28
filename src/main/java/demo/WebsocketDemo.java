@@ -52,7 +52,8 @@ public class WebsocketDemo {
     public static void main(String[] args) {
         try {
             OntSdk ontSdk = getOntSdk();
-
+            String password = "passwordtest";
+            Account payer = ontSdk.getWalletMgr().createAccount(password);
 
             ontSdk.getWebSocket().startWebsocketThread(false);
 
@@ -71,14 +72,14 @@ public class WebsocketDemo {
             //System.exit(0);
 
             //System.out.println("================register=================");
-            Identity ident = null;
-            if (ontSdk.getWalletMgr().getIdentitys().size() == 0) {
-                ident = ontSdk.getOntIdTx().sendRegister("passwordtest");
-            } else {
-                ident = ontSdk.getWalletMgr().getIdentitys().get(0);
-            }
+//            Identity ident = null;
+//            if (ontSdk.getWalletMgr().getIdentitys().size() == 0) {
+//                ident = ontSdk.neovm().ontId().sendRegister("passwordtest","payer",0);
+//            } else {
+//                ident = ontSdk.getWalletMgr().getIdentitys().get(0);
+//            }
 
-            String ontid = ident.ontid;
+//            String ontid = ident.ontid;
 
 
             for (int i = 0; i >= 0; i++) {
@@ -88,7 +89,6 @@ public class WebsocketDemo {
                 //System.out.println("hash:" + hash);
 
 
-                String password = "passwordtest";
 
                 if (false) {
                     Account info1 = null;
@@ -102,40 +102,28 @@ public class WebsocketDemo {
                     }
                     info1 = ontSdk.getWalletMgr().getAccounts().get(0);
                     info2 = ontSdk.getWalletMgr().getAccounts().get(1);
-                    Transaction tx = ontSdk.getOntAssetTx().makeTransfer("ont", info1.address, "passwordtest", info2.address, 100L);
+                    Transaction tx = ontSdk.nativevm().ont().makeTransfer( info1.address, "passwordtest", info2.address, 100L,payer.address, ontSdk.DEFAULT_GAS_LIMIT,0);
                     ontSdk.signTx(tx, info1.address, password);
                     System.out.println(tx.toHexString());
-                    ontSdk.getConnectMgr().sendRawTransaction(tx.toHexString());
+                    ontSdk.getConnect().sendRawTransaction(tx.toHexString());
                 }
 
-                if (false) {
-                    String attri = "attri";
-                    Map recordMap = new HashMap();
-                    recordMap.put("key0", "world0");
-                    recordMap.put("key1", i);
-                    recordMap.put("keyNum", 1234589);
-                    recordMap.put("key2", false);
-                    ontSdk.setCodeAddress("80e7d2fc22c24c466f44c7688569cc6e6d6c6f92");
-                    Transaction tx = ontSdk.getOntIdTx().makeUpdateAttribute(ontid, "passwordtest", attri.getBytes(), "Json".getBytes(), JSON.toJSONString(recordMap).getBytes());
-                    ontSdk.signTx(tx, ontid, password);
-                    ontSdk.getWebSocket().sendRawTransaction(tx.toHexString());
-                }
 
                 //waitResult(ontSdk, lock);
 
                 if (false) {
-                    ontSdk.getConnectMgr().getBalance("TA63xZXqdPLtDeznWQ6Ns4UsbqprLrrLJk");
-                    ontSdk.getConnectMgr().getBlockJson("c8c165bf0ac6107f7f324b0badb60af4dc4e1157b5eb9d3163c8f332a8612c98");
-                    ontSdk.getConnectMgr().getNodeCount();
-                    ontSdk.getConnectMgr().getGenerateBlockTime();
-                    ontSdk.getConnectMgr().getContractJson("80e7d2fc22c24c466f44c7688569cc6e6d6c6f92");
-                    ontSdk.getConnectMgr().getSmartCodeEvent("7c3e38afb62db28c7360af7ef3c1baa66aeec27d7d2f60cd22c13ca85b2fd4f3");
-                    ontSdk.getConnectMgr().getBlockHeightByTxHash("7c3e38afb62db28c7360af7ef3c1baa66aeec27d7d2f60cd22c13ca85b2fd4f3");
-                    ontSdk.getConnectMgr().getStorage("ff00000000000000000000000000000000000001", Address.decodeBase58("TA63xZXqdPLtDeznWQ6Ns4UsbqprLrrLJk").toHexString());
-                    ontSdk.getConnectMgr().getTransactionJson("7c3e38afb62db28c7360af7ef3c1baa66aeec27d7d2f60cd22c13ca85b2fd4f3");
+                    ontSdk.getConnect().getBalance("TA63xZXqdPLtDeznWQ6Ns4UsbqprLrrLJk");
+                    ontSdk.getConnect().getBlockJson("c8c165bf0ac6107f7f324b0badb60af4dc4e1157b5eb9d3163c8f332a8612c98");
+                    ontSdk.getConnect().getNodeCount();
+                    ontSdk.getConnect().getGenerateBlockTime();
+                    ontSdk.getConnect().getContractJson("80e7d2fc22c24c466f44c7688569cc6e6d6c6f92");
+                    ontSdk.getConnect().getSmartCodeEvent("7c3e38afb62db28c7360af7ef3c1baa66aeec27d7d2f60cd22c13ca85b2fd4f3");
+                    ontSdk.getConnect().getBlockHeightByTxHash("7c3e38afb62db28c7360af7ef3c1baa66aeec27d7d2f60cd22c13ca85b2fd4f3");
+                    ontSdk.getConnect().getStorage("ff00000000000000000000000000000000000001", Address.decodeBase58("TA63xZXqdPLtDeznWQ6Ns4UsbqprLrrLJk").toHexString());
+                    ontSdk.getConnect().getTransactionJson("7c3e38afb62db28c7360af7ef3c1baa66aeec27d7d2f60cd22c13ca85b2fd4f3");
                 }
-                if (true) {
-                    ontSdk.setCodeAddress("80f6bff7645a84298a1a52aa3745f84dba6615cf");
+                if (false) {
+
                     InputStream is = new FileInputStream("C:\\ZX\\huguanjun.abi.json");//IdContract
                     byte[] bys = new byte[is.available()];
                     is.read(bys);
@@ -149,11 +137,8 @@ public class WebsocketDemo {
                     AbiFunction func0 = abiinfo.getFunction("Put");
                     Identity did0 = ontSdk.getWalletMgr().getIdentitys().get(0);
                     func0.setParamsValue("key".getBytes(), "value".getBytes());
-                    String hash0 = ontSdk.getSmartcodeTx().sendInvokeSmartCodeWithSign(did0.ontid, "passwordtest", func0, (byte) VmType.NEOVM.value());
-
-                    System.out.println(hash0);
                 }
-                if(false){
+                if(true){
                     Map map = new HashMap();
                     if(i >0) {
                         map.put("SubscribeEvent", true);
@@ -201,7 +186,7 @@ public class WebsocketDemo {
 
     public static OntSdk getOntSdk() throws Exception {
         String ip = "http://127.0.0.1";
-//        String ip = "http://54.222.182.88;
+//        String ip = "http://139.219.129.55";
 //        String ip = "http://101.132.193.149";
         String restUrl = ip + ":" + "20384";
         String rpcUrl = ip + ":" + "20386";
@@ -212,7 +197,6 @@ public class WebsocketDemo {
         wm.setRestful(restUrl);
         wm.setWesocket(wsUrl, lock);
         wm.setDefaultConnect(wm.getWebSocket());
-        wm.setCodeAddress("80f6bff7645a84298a1a52aa3745f84dba6615cf");
         wm.openWalletFile("OntAssetDemo.json");
         return wm;
     }

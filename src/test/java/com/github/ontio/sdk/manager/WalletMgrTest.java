@@ -1,9 +1,11 @@
 package com.github.ontio.sdk.manager;
 
 import com.github.ontio.OntSdk;
+import com.github.ontio.OntSdkTest;
 import com.github.ontio.sdk.wallet.Account;
 import com.github.ontio.sdk.wallet.Identity;
 import com.github.ontio.sdk.wallet.Wallet;
+import com.github.ontio.smartcontract.nativevm.OntId;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -17,22 +19,35 @@ public class WalletMgrTest {
     private OntSdk ontSdk;
     private WalletMgr walletMgr;
     private Wallet wallet;
-    private OntIdTx ontIdTx;
+    private OntId ontIdTx;
+
+    String password = "111111";
+
+    Account payer;
+
+    String walletFile = "wallet.json";
 
     @Before
     public void setUp() throws Exception {
         ontSdk = OntSdk.getInstance();
-        ontSdk.setRestful("http://polaris1.ont.io:20334");
-        ontSdk.openWalletFile("wallet.json");
-        ontSdk.setCodeAddress("80b0cc71bda8653599c5666cae084bff587e2de1");
+        ontSdk.setRestful(OntSdkTest.URL);
+        ontSdk.openWalletFile(walletFile);
         walletMgr = ontSdk.getWalletMgr();
         wallet = walletMgr.getWallet();
-        ontIdTx = ontSdk.getOntIdTx();
+        ontIdTx = ontSdk.nativevm().ontId();
+
+        payer = ontSdk.getWalletMgr().createAccount(password);
 
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void removeWallet(){
+        File file = new File(walletFile);
+        if(file.exists()){
+            if(file.delete()){
+                System.out.println("delete wallet file success");
+            }
+        }
     }
 
     @Test
@@ -56,7 +71,7 @@ public class WalletMgrTest {
 
     @Test
     public void createIdentity() throws Exception {
-         Identity identity = walletMgr.createIdentity("123456");
+         Identity identity = walletMgr.createIdentity(password);
          assertNotNull(identity);
          assertNotNull(identity.ontid);
          assertNotEquals(identity.ontid,"");
@@ -64,26 +79,9 @@ public class WalletMgrTest {
 
     @Test
     public void getAccount() throws Exception {
-        Identity identity =  walletMgr.createIdentity("123456");
-        com.github.ontio.account.Account account = walletMgr.getAccount(identity.ontid,"12345");
+        Identity identity =  walletMgr.createIdentity(password);
+        com.github.ontio.account.Account account = walletMgr.getAccount(identity.ontid,password);
         assertNotNull(account);
-    }
-
-    @Test
-    public void sendRegisterPreExec() throws Exception {
-        Identity identity = walletMgr.createIdentity("123456");
-        Identity identity1 = ontIdTx.sendRegisterPreExec(identity,"123456");
-        assertNotNull(identity1);
-        assertEquals(identity.ontid,identity1.ontid);
-    }
-
-    @Test
-    public void sendRegister() throws Exception {
-        Identity identity = walletMgr.createIdentity("123456");
-        Identity identity1 = ontIdTx.sendRegister(identity,"123456");
-        Thread.sleep(6000);
-        String string = ontIdTx.sendGetDDO(identity1.ontid);
-        assertTrue(string.contains(identity1.ontid));
     }
 
     @Test
@@ -93,9 +91,9 @@ public class WalletMgrTest {
         walletMgr.writeWallet();
         assertEquals(identities.size(), 0);
 
-        Identity identity = walletMgr.createIdentity("123456");
-        com.github.ontio.account.Account account = walletMgr.getAccount(identity.ontid,"123456");
-        String prikeyStr = account.exportCtrEncryptedPrikey("123456",16384);
+        Identity identity = walletMgr.createIdentity(password);
+        com.github.ontio.account.Account account = walletMgr.getAccount(identity.ontid,password);
+        String prikeyStr = account.exportCtrEncryptedPrikey(password,16384);
         assertTrue(identities.size() == 1);
         identities.clear();
         walletMgr.writeWallet();
@@ -103,7 +101,7 @@ public class WalletMgrTest {
 
 
         String addr = identity.ontid.substring(8);
-        walletMgr.importIdentity(prikeyStr,"123456",addr);
+        walletMgr.importIdentity(prikeyStr,password,addr);
         assertTrue(identities.size() == 1);
         Identity identity1 = identities.get(0);
         assertEquals(identity.ontid,identity1.ontid);
@@ -116,15 +114,15 @@ public class WalletMgrTest {
         assertEquals(accounts.size(), 0);
         walletMgr.writeWallet();
 
-        Account account = walletMgr.createAccount("123456");
-        com.github.ontio.account.Account accountDiff = walletMgr.getAccount(account.address,"123456");
-        String prikeyStr = accountDiff.exportCtrEncryptedPrikey("123456",16384);
+        Account account = walletMgr.createAccount(password);
+        com.github.ontio.account.Account accountDiff = walletMgr.getAccount(account.address,password);
+        String prikeyStr = accountDiff.exportCtrEncryptedPrikey(password,16384);
        assertTrue(accounts.size() == 1);
        accounts.clear();
        assertTrue(accounts.size() == 0);
        walletMgr.writeWallet();
 
-       Account account1 = walletMgr.importAccount(prikeyStr,"123456",account.address);
+       Account account1 = walletMgr.importAccount(prikeyStr,password,account.address);
        assertTrue(accounts.size() == 1);
        assertEquals(account.address, account1.address);
 

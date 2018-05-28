@@ -5,7 +5,6 @@ import com.github.ontio.common.Address;
 import com.github.ontio.common.Helper;
 import com.github.ontio.core.VmType;
 import com.github.ontio.core.asset.Contract;
-import com.github.ontio.core.asset.Fee;
 import com.github.ontio.core.asset.State;
 import com.github.ontio.core.asset.Transfers;
 import com.github.ontio.core.transaction.Transaction;
@@ -45,15 +44,15 @@ public class OntAssetSM2Demo {
             System.out.println("senderAd:" + sender.toBase58());
             System.out.println("recvAddr:" + recvAddr123.toBase58());
 
-            System.out.println("senderAd : ont :" + ontSdk.getOntAssetTx().sendBalanceOf("ont",sender.toBase58()));
-            System.out.println("recvAddr : ont :" + ontSdk.getOntAssetTx().sendBalanceOf("ont",recvAddr123.toBase58()));
+            System.out.println("senderAd : ont :" + ontSdk.nativevm().ont().queryBalanceOf(sender.toBase58()));
+            System.out.println("recvAddr : ont :" + ontSdk.nativevm().ont().queryBalanceOf(recvAddr123.toBase58()));
 
             int amount = 10;
 
             State state = new State(acct0.getAddressU160(), recvAddr123, amount);
             Transfers transfers = new Transfers(new State[]{state});
             Contract contract = new Contract((byte) 0, null, Address.parse(ontContractAddr), "transfer", transfers.toArray());
-            Transaction tx = ontSdk.getSmartcodeTx().makeInvokeCodeTransaction(ontContractAddr, null, contract.toArray(), VmType.Native.value(), sender.toBase58());
+            Transaction tx = ontSdk.vm().makeInvokeCodeTransaction(ontContractAddr, null, contract.toArray(), VmType.Native.value(), sender.toBase58(),0,0);
             System.out.println(tx.json());
             ontSdk.signTx(tx, new com.github.ontio.account.Account[][]{{acct0}});
 
@@ -70,22 +69,22 @@ public class OntAssetSM2Demo {
             System.out.println("recvAddr:" + recvAddr.toBase58());
 
 
-            System.out.println("senderAd : ont :" + ontSdk.getOntAssetTx().sendBalanceOf("ont",multiAddr.toBase58()));
-            System.out.println("recvAddr : ont :" + ontSdk.getOntAssetTx().sendBalanceOf("ont",recvAddr.toBase58()));
+            System.out.println("senderAd : ont :" + ontSdk.nativevm().ont().queryBalanceOf(multiAddr.toBase58()));
+            System.out.println("recvAddr : ont :" + ontSdk.nativevm().ont().queryBalanceOf(recvAddr.toBase58()));
 
             int amount = 1;
 
             State state = new State(multiAddr, recvAddr, amount);
             Transfers transfers = new Transfers(new State[]{state});
             Contract contract = new Contract((byte) 0, null, Address.parse(ontContractAddr), "transfer", transfers.toArray());
-
-            Transaction tx = ontSdk.getSmartcodeTx().makeInvokeCodeTransaction(ontContractAddr, null, contract.toArray(), VmType.Native.value(), Address.addressFromMultiPubKeys(2, acct1.serializePublicKey(),acct3.serializePublicKey()).toBase58());
+            String addr = Address.addressFromMultiPubKeys(2, acct1.serializePublicKey(),acct3.serializePublicKey()).toBase58();
+            Transaction tx = ontSdk.vm().makeInvokeCodeTransaction(ontContractAddr, null, contract.toArray(), VmType.Native.value(),addr,0,0 );
 //            System.out.println(tx.json());
             ontSdk.signTx(tx, new com.github.ontio.account.Account[][]{{acct1, acct3}});
             System.out.println("tx.sigs.length:" + tx.sigs.length);
             System.out.println("tx.sigs.length:" + tx.sigs[0].pubKeys.length);
 //            System.out.println(tx.hash().toHexString());
-            ontSdk.getConnectMgr().sendRawTransaction(tx.toHexString());
+            ontSdk.getConnect().sendRawTransaction(tx.toHexString());
 
 
         }
@@ -99,9 +98,9 @@ public class OntAssetSM2Demo {
             System.out.println("sender2:" + sender2.toBase58());
             System.out.println("recvAddr:" + recvAddr.toBase58());
 
-            System.out.println("sender1 : ont :" + ontSdk.getOntAssetTx().sendBalanceOf("ont",sender1.toBase58()));
-            System.out.println("sender2 : ont :" + ontSdk.getOntAssetTx().sendBalanceOf("ont",sender2.toBase58()));
-            System.out.println("recvAddr : ont :" + ontSdk.getOntAssetTx().sendBalanceOf("ont",recvAddr.toBase58()));
+            System.out.println("sender1 : ont :" + ontSdk.nativevm().ont().queryBalanceOf(sender1.toBase58()));
+            System.out.println("sender2 : ont :" + ontSdk.nativevm().ont().queryBalanceOf(sender2.toBase58()));
+            System.out.println("recvAddr : ont :" + ontSdk.nativevm().ont().queryBalanceOf(recvAddr.toBase58()));
 
             int amount = 10;
             int amount2 = 20;
@@ -111,12 +110,12 @@ public class OntAssetSM2Demo {
             Transfers transfers = new Transfers(new State[]{state, state2});
             Contract contract = new Contract((byte) 0, null, Address.parse(ontContractAddr), "transfer", transfers.toArray());
 
-            Transaction tx = ontSdk.getSmartcodeTx().makeInvokeCodeTransaction(ontContractAddr, null, contract.toArray(), VmType.Native.value(), sender1.toBase58());
+            Transaction tx = ontSdk.vm().makeInvokeCodeTransaction(ontContractAddr, null, contract.toArray(), VmType.Native.value(), sender1.toBase58(),0,0);
             System.out.println(tx.json());
             ontSdk.signTx(tx, new com.github.ontio.account.Account[][]{{acct0}, {acct1, acct2}});
 
             System.out.println(tx.hash().toHexString());
-            ontSdk.getConnectMgr().sendRawTransaction(tx.toHexString());
+            ontSdk.getConnect().sendRawTransaction(tx.toHexString());
 
         }
 

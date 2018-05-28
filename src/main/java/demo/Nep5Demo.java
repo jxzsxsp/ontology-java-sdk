@@ -26,7 +26,11 @@ import com.github.ontio.core.transaction.Transaction;
 import com.github.ontio.sdk.wallet.Account;
 import com.github.ontio.sdk.wallet.Identity;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.List;
 import java.util.Map;
 
@@ -53,25 +57,30 @@ public class Nep5Demo {
             ontSdk.getWalletMgr().writeWallet();
             System.out.println("recv:"+acct.address);
             if(false) {
-                String result = ontSdk.getNep5Tx().sendInit();
-                System.out.println(result);
+                long gasLimit = ontSdk.neovm().nep5().sendInitGetGasLimit();
+                //System.out.println(gasLimit);
+                //String result = ontSdk.neovm().nep5().sendInit(acct.address,"passwordtest",gasLimit,gasLimit*1);
+                //System.out.println(result);
                 System.exit(0);
             }
-            String txhash = ontSdk.getNep5Tx().sendTransfer(acct.address,"passwordtest",acct1.getAddressU160().toBase58(),10);
-            System.out.println(txhash);
+            long gasLimit =  ontSdk.neovm().nep5().sendTransferGetGasLimit(acct.address,"passwordtest",acct1.getAddressU160().toBase58(), 464400000000000L);
+            System.out.println(gasLimit);
+            //ontSdk.neovm().nep5().sendTransfer(acct.address,"passwordtest",acct1.getAddressU160().toBase58(),464400000000000L,gasLimit,gasLimit*1);
+            System.exit(0);
 
-            String balance = ontSdk.getNep5Tx().sendBalanceOf(acct.address);
+
+            String balance = ontSdk.neovm().nep5().queryBalanceOf(acct.address);
             System.out.println(new BigInteger(Helper.reverse(Helper.hexToBytes(balance))).longValue());
-
-            String totalSupply = ontSdk.getNep5Tx().sendTotalSupply();
+            //System.exit(0);
+            String totalSupply = ontSdk.neovm().nep5().queryTotalSupply();
             System.out.println(new BigInteger(Helper.reverse(Helper.hexToBytes(totalSupply))).longValue());
 
-            String decimals = ontSdk.getNep5Tx().sendDecimals();
+            String decimals = ontSdk.neovm().nep5().queryDecimals();
             System.out.println(decimals);
 
-            String name = ontSdk.getNep5Tx().sendName();
+            String name = ontSdk.neovm().nep5().queryName();
             System.out.println(new String(Helper.hexToBytes(name)));
-            String symbol = ontSdk.getNep5Tx().sendSymbol();
+            String symbol = ontSdk.neovm().nep5().querySymbol();
             System.out.println(new String(Helper.hexToBytes(symbol)));
 
             System.out.println(Address.decodeBase58(acct.address).toHexString());
@@ -95,7 +104,7 @@ public class Nep5Demo {
         wm.setRpc(rpcUrl);
         wm.setRestful(restUrl);
         wm.setDefaultConnect(wm.getRestful());
-        wm.setCodeAddress("809071dac173b27f467d0e062bfdb24ff43ac74d");
+        wm.neovm().nep5().setContractAddress("8097b70f436f225c42b14c2afc1d3bc582abd141");
         wm.openWalletFile("nep5.json");
 
 

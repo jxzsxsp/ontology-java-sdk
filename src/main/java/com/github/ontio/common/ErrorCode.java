@@ -106,13 +106,16 @@ public class ErrorCode {
     public static String WriteVarBytesError = getError(58015,"OntIdTx Error, writeVarBytes error");
     public static String SendRawTransactionPreExec = getError(58016,"OntIdTx Error, sendRawTransaction PreExec error");
     public static String SenderAmtNotEqPasswordAmt = getError(58017,"OntIdTx Error, senders amount is not equal password amount");
+    public static String ExpireErr = getError(58017,"OntIdTx Error, expire is wrong");
+
 
     //OntAsset Error
     public static String AssetNameError = getError(58101,"OntAsset Error,asset name error");
     public static String DidError = getError(58102,"OntAsset Error,Did error");
     public static String NullPkId = getError(58103,"OntAsset Error,null pkId");
     public static String NullClaimId = getError(58104,"OntAsset Error,null claimId");
-    public static String AmountError = getError(58105,"OntAsset Error,amount is less than or equal to zero");
+    public static String AmountError = getError(58105,"OntAsset Error,amount or gas is less than or equal to zero");
+    public static String ParamLengthNotSame = getError(58105,"OntAsset Error,param length is not the same");
 
     //RecordTx Error
     public static String NullKeyOrValue = getError(58201,"RecordTx Error,null key or value");

@@ -28,7 +28,6 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.github.ontio.crypto.SignatureScheme;
 import com.github.ontio.sdk.wallet.Identity;
-import org.junit.runners.Parameterized;
 import sun.misc.BASE64Encoder;
 
 import java.security.spec.AlgorithmParameterSpec;
@@ -76,16 +75,14 @@ public class Claim {
         String iss = metadata.get("Issuer");
         String sub = metadata.get("Subject");
         Header header = new Header("","",publicKeyId);
-        Payload payload = new Payload("v1.0",iss,sub,System.currentTimeMillis(),expireTime,ctx,clmMap,clmRevMap);
+        Payload payload = new Payload("v1.0",iss,sub,System.currentTimeMillis()/1000,expireTime,ctx,clmMap,clmRevMap);
         String headerStr = JSONObject.toJSONString(header.getJson());
         String payloadStr = JSONObject.toJSONString(payload.getJson());
         byte[] headerBytes = Base64.getEncoder().encode(headerStr.getBytes());
         byte[] payloadBytes = Base64.getEncoder().encode(payloadStr.getBytes());
         DataSignature sign = new DataSignature(scheme, acct, new String(headerBytes) + "." + new String(payloadBytes));
         byte[] signature = sign.signature();
-        SignatureInfo info = new SignatureInfo("", "",publicKeyId, signature);
-
-        ClaimStr += new String(headerBytes) + "." + new String(payloadBytes) + "." + new String(Base64.getEncoder().encode(JSONObject.toJSONString(info.getJson()).getBytes()));
+        ClaimStr += new String(headerBytes) + "." + new String(payloadBytes) + "." + new String(Base64.getEncoder().encode(signature));
     }
 
     public String getClaimStr() {
@@ -112,8 +109,8 @@ class Header {
     }
     public Object getJson() {
         Map<String, Object> header = new HashMap<String, Object>();
-        header.put("Alg", Alg);
-        header.put("Typ", Typ);
+        header.put("alg", Alg);
+        header.put("typ", Typ);
         header.put("kid", Kid);
         return header;
     }
@@ -144,14 +141,15 @@ class Payload {
 
     public Object getJson() {
         Map<String, Object> payload = new HashMap<String, Object>();
-        payload.put("Ver", Ver);
-        payload.put("Iss", Iss);
-        payload.put("Sub", Sub);
-        payload.put("Iat", Iat);
-        payload.put("Exp", Exp);
-        payload.put("Context", Context);
-        payload.put("Clm",ClmMap);
-        payload.put("ClmRev",ClmRevMap);
+        payload.put("ver", Ver);
+        payload.put("iss", Iss);
+        payload.put("sub", Sub);
+        payload.put("iat", Iat);
+        payload.put("exp", Exp);
+        payload.put("jti", Jti);
+        payload.put("@context", Context);
+        payload.put("clm",ClmMap);
+        payload.put("clm-rev",ClmRevMap);
         return payload;
     }
 }

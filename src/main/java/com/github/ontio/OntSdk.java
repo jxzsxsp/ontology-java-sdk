@@ -22,13 +22,16 @@ package com.github.ontio;
 import com.github.ontio.account.Account;
 import com.github.ontio.common.Common;
 import com.github.ontio.common.ErrorCode;
+import com.github.ontio.common.Helper;
 import com.github.ontio.core.transaction.Transaction;
 import com.github.ontio.core.asset.Sig;
-import com.github.ontio.crypto.KeyType;
 import com.github.ontio.crypto.SignatureScheme;
 import com.github.ontio.sdk.exception.SDKException;
 import com.github.ontio.sdk.manager.*;
-import com.github.ontio.network.websocket.WebsocketClient;
+import com.github.ontio.smartcontract.NativeVm;
+import com.github.ontio.smartcontract.NeoVm;
+import com.github.ontio.smartcontract.Vm;
+import com.github.ontio.smartcontract.WasmVm;
 
 /**
  * Ont Sdk
@@ -40,16 +43,15 @@ public class OntSdk {
     private ConnectMgr connWebSocket;
     private ConnectMgr connDefault;
 
-    private Nep5Tx nep5Tx = null;
-    private OntIdTx ontIdTx = null;
-    private RecordTx recordTx = null;
-    private SmartcodeTx smartcodeTx = null;
-    private OntAssetTx ontAssetTx = null;
-    private ClaimRecordTx claimRecordTx = null;
-    private NativeOntIdTx nativeOntIdTx = null;
+    private Vm vm = null;
+    private NativeVm nativevm = null;
+    private NeoVm neovm = null;
+    private WasmVm wasmvm = null;
+
+
     private static OntSdk instance = null;
     public SignatureScheme signatureScheme = SignatureScheme.SHA256WITHECDSA;
-
+    public long DEFAULT_GAS_LIMIT = 30000;
     public static synchronized OntSdk getInstance(){
         if(instance == null){
             instance = new OntSdk();
@@ -59,6 +61,34 @@ public class OntSdk {
     private OntSdk(){
     }
 
+    public NativeVm nativevm() throws SDKException{
+        if(nativevm == null){
+            vm();
+            nativevm = new NativeVm(getInstance());
+        }
+        return nativevm;
+    }
+    public NeoVm neovm() {
+        if(neovm == null){
+            vm();
+            neovm = new NeoVm(getInstance());
+        }
+        return neovm;
+    }
+    public WasmVm wasmvm() {
+        if(wasmvm == null){
+            vm();
+            wasmvm = new WasmVm(getInstance());
+        }
+        return wasmvm;
+    }
+
+    public Vm vm() {
+        if(vm == null){
+            vm = new Vm(getInstance());
+        }
+        return vm;
+    }
     public ConnectMgr getRpc() throws SDKException{
         if(connRpc == null){
             throw new SDKException(ErrorCode.ConnRestfulNotInit);
@@ -72,7 +102,7 @@ public class OntSdk {
         }
         return connRestful;
     }
-    public ConnectMgr getConnectMgr(){
+    public ConnectMgr getConnect(){
         if(connDefault != null){
             return connDefault;
         }
@@ -97,74 +127,6 @@ public class OntSdk {
         return connWebSocket;
     }
 
-    /**
-     * OntId
-     * @return instance
-     */
-    public OntIdTx getOntIdTx() {
-        if(ontIdTx == null){
-            getSmartcodeTx();
-            ontIdTx = new OntIdTx(getInstance());
-        }
-        return ontIdTx;
-    }
-
-    /**
-     * RecordTx
-     * @return instance
-     */
-    public RecordTx getRecordTx() {
-        if(recordTx == null){
-            getSmartcodeTx();
-            recordTx = new RecordTx(getInstance());
-        }
-        return recordTx;
-    }
-
-    public ClaimRecordTx getClaimRecordTx(){
-        if (claimRecordTx == null){
-            getSmartcodeTx();
-            claimRecordTx = new ClaimRecordTx(getInstance());
-        }
-        return claimRecordTx;
-    }
-
-    public NativeOntIdTx getNativeOntIdTx(){
-        if (nativeOntIdTx == null){
-            getSmartcodeTx();
-            nativeOntIdTx = new NativeOntIdTx(getInstance());
-        }
-        return nativeOntIdTx;
-    }
-
-    /**
-     *  Smartcode Tx
-     * @return instance
-     */
-    public SmartcodeTx getSmartcodeTx() {
-        if(smartcodeTx == null){
-            smartcodeTx = new SmartcodeTx(getInstance());
-        }
-        return smartcodeTx;
-    }
-
-    /**
-     *  get OntAsset Tx
-     * @return instance
-     */
-    public OntAssetTx getOntAssetTx() {
-        if(ontAssetTx == null){
-            ontAssetTx = new OntAssetTx(getInstance());
-        }
-        return ontAssetTx;
-    }
-
-    public Nep5Tx getNep5Tx() {
-        if(nep5Tx == null){
-            nep5Tx = new Nep5Tx(getInstance());
-        }
-        return nep5Tx;
-    }
 
     /**
      * get Wallet Mgr
@@ -174,19 +136,6 @@ public class OntSdk {
         return walletMgr;
     }
 
-
-    /**
-     *
-     * @param codeAddress
-     */
-    public void setCodeAddress(String codeAddress){
-        getOntIdTx().setCodeAddress(codeAddress);
-        getSmartcodeTx().setCodeAddress(codeAddress);
-        getRecordTx().setCodeAddress(codeAddress);
-        getNep5Tx().setCodeAddress(codeAddress);
-        getClaimRecordTx().setCodeAddress(codeAddress);
-        getNativeOntIdTx().setCodeAddress(codeAddress);
-    }
 
     /**
      *
@@ -219,6 +168,31 @@ public class OntSdk {
         setSignatureScheme(signatureScheme);
     }
 
+    /**
+     *
+     * @param tx
+     * @param addr
+     * @param password
+     * @return
+     * @throws Exception
+     */
+    public Transaction addSign(Transaction tx,String addr,String password) throws Exception {
+        if(tx.sigs == null){
+            tx.sigs = new Sig[0];
+        }
+        Sig[] sigs = new Sig[tx.sigs.length + 1];
+        for(int i= 0; i< tx.sigs.length; i++){
+            sigs[i] = tx.sigs[i];
+        }
+        sigs[tx.sigs.length] = new Sig();
+        sigs[tx.sigs.length].M = 1;
+        sigs[tx.sigs.length].pubKeys = new byte[1][];
+        sigs[tx.sigs.length].sigData = new byte[1][];
+        sigs[tx.sigs.length].pubKeys[0] = Helper.hexToBytes(getWalletMgr().getAccountInfo(addr,password).pubkey);
+        sigs[tx.sigs.length].sigData[0] = tx.sign(getWalletMgr().getAccount(addr,password),signatureScheme);
+        tx.sigs = sigs;
+        return tx;
+    }
 
     public Transaction signTx(Transaction tx, String address, String password) throws Exception{
         address = address.replace(Common.didont, "");

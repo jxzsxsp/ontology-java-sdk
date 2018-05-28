@@ -2,13 +2,19 @@ package com.github.ontio.merkle;
 
 import com.alibaba.fastjson.JSON;
 import com.github.ontio.OntSdk;
+import com.github.ontio.OntSdkTest;
 import com.github.ontio.common.UInt256;
 import com.github.ontio.core.block.Block;
+import com.github.ontio.core.transaction.Transaction;
 import com.github.ontio.network.exception.ConnectorException;
 import com.github.ontio.sdk.exception.SDKException;
+import com.github.ontio.sdk.wallet.Account;
+import com.github.ontio.sdk.wallet.Identity;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -18,17 +24,29 @@ import static org.junit.Assert.*;
 
 public class MerkleVerifierTest {
     OntSdk ontSdk;
+    String password = "111111";
+    String walletFile = "MerkleVerifierTest.json";
 
     @Before
     public void setUp() throws SDKException {
-        String ip = "http://127.0.0.1";
-        String restUrl = ip + ":" + "20334";
+        String restUrl = OntSdkTest.URL;
 
         ontSdk = OntSdk.getInstance();
         ontSdk.setRestful(restUrl);
         ontSdk.setDefaultConnect(ontSdk.getRestful());
 
-        ontSdk.openWalletFile("MerkleVerifierTest.json");
+        ontSdk.openWalletFile(walletFile);
+    }
+
+
+    @After
+    public void removeWallet(){
+        File file = new File(walletFile);
+        if(file.exists()){
+            if(file.delete()){
+                System.out.println("delete wallet file success");
+            }
+        }
     }
 
     @Test
@@ -54,16 +72,24 @@ public class MerkleVerifierTest {
 
     @Test
     public void getProof() throws Exception {
-        Block block = ontSdk.getConnectMgr().getBlock(ontSdk.getConnectMgr().getBlockHeight());
-        String hash = block.transactions[0].hash().toHexString();
+        Identity identity = ontSdk.getWalletMgr().createIdentity(password);
+        Account payer = ontSdk.getWalletMgr().createAccount(password);
+
+        Transaction tx = ontSdk.nativevm().ontId().makeRegister(identity.ontid,password,payer.address,ontSdk.DEFAULT_GAS_LIMIT,0);
+        ontSdk.signTx(tx,identity.ontid,password);
+        ontSdk.addSign(tx,payer.address,password);
+        ontSdk.getConnect().sendRawTransaction(tx);
+        Thread.sleep(6000);
+
+        String hash = tx.hash().toHexString();
         Map proof = new HashMap();
         Map map = new HashMap();
-        int height = ontSdk.getConnectMgr().getBlockHeightByTxHash(hash);
+        int height = ontSdk.getConnect().getBlockHeightByTxHash(hash);
         map.put("Type", "MerkleProof");
         map.put("TxnHash", hash);
         map.put("BlockHeight", height);
 
-        Map tmpProof = (Map) ontSdk.getConnectMgr().getMerkleProof(hash);
+        Map tmpProof = (Map) ontSdk.getConnect().getMerkleProof(hash);
         UInt256 txroot = UInt256.parse((String) tmpProof.get("TransactionsRoot"));
         int blockHeight = (int) tmpProof.get("BlockHeight");
         UInt256 curBlockRoot = UInt256.parse((String) tmpProof.get("CurBlockRoot"));

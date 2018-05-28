@@ -153,11 +153,11 @@ public class RestClient extends AbstractConnector {
     }
 
     @Override
-    public Object getRawTransactionJson(String txhash) throws RestfulException {
-        String rs = api.getTransaction(txhash, false);
+    public Object getRawTransactionJson(String txhash) throws RestfulException,IOException {
+        String rs = api.getTransaction(txhash, true);
         Result rr = JSON.parseObject(rs, Result.class);
         if (rr.Error == 0) {
-            return rr.Result;
+            return Transaction.deserializeFrom(Helper.hexToBytes((String) rr.Result)).json();
         }
         throw new RestfulException(to(rr));
     }
@@ -249,6 +249,15 @@ public class RestClient extends AbstractConnector {
         Result rr = JSON.parseObject(rs, Result.class);
         if (rr.Error == 0) {
             return rr.Result;
+        }
+        throw new RestfulException(to(rr));
+    }
+    @Override
+    public String getAllowance(String asset,String from,String to) throws ConnectorException, IOException{
+        String rs = api.getAllowance(asset,from,to);
+        Result rr = JSON.parseObject(rs, Result.class);
+        if (rr.Error == 0) {
+            return (String)rr.Result;
         }
         throw new RestfulException(to(rr));
     }

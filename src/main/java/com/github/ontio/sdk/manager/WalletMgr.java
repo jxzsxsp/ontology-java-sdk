@@ -74,10 +74,7 @@ public class WalletMgr {
                 wallet.setAccounts(new ArrayList<>());
             }
             writeWallet();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
         } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
@@ -114,10 +111,7 @@ public class WalletMgr {
                 String prikey = com.github.ontio.account.Account.getCtrDecodedPrivateKey(identity.controls.get(0).key, password,addr, walletFile.getScrypt().getN(),scheme);
                 storePrivateKey(identityPriKeyMap, identity.ontid, password, prikey);
             }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
         } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
@@ -317,7 +311,6 @@ public class WalletMgr {
     public AccountInfo getAccountInfo(String address, String password) throws Exception {
         address = address.replace(Common.didont, "");
         AccountInfo info = new AccountInfo();
-        System.out.println(address);
         com.github.ontio.account.Account acc = getAccountByAddress(Address.decodeBase58(address), password);
         info.addressBase58 = address;
         info.pubkey = Helper.toHexString(acc.serializePublicKey());
@@ -343,6 +336,15 @@ public class WalletMgr {
 
     public Identity getDefaultIdentity() {
         for (Identity e : wallet.getIdentities()) {
+            if (e.isDefault) {
+                return e;
+            }
+        }
+        return null;
+    }
+
+    public Account getDefaultAccount() {
+        for (Account e : wallet.getAccounts()) {
             if (e.isDefault) {
                 return e;
             }
