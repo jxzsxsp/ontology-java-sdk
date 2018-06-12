@@ -25,7 +25,6 @@ public class Base {
         wm.setDefaultConnect(wm.getRestful());
 
         wm.openWalletFile("MyWalletDemo.json");
-        wm.setCodeAddress("80e7d2fc22c24c466f44c7688569cc6e6d6c6f92");
 
         return wm;
     }

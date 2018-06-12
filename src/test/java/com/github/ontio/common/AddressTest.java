@@ -64,14 +64,19 @@ public class AddressTest {
     public void pubKeyToBase58(){
         Address addr1 = Address.addressFromPubKey("1202024714d59834799310a4aea84f1dceb55058481624497633b97cc7ba9e96e85eac");
         Address addr2 = Address.parse("012cf101547425b5f581d61bcd1c81615f045fb5");
-        Address addr3 = Address.decodeBase58("TA5RWqSBZBpb8UvEfnGapRGcXnSaoaZ1Yu");
         System.out.println("Base58 addr1 = " + addr1.toBase58());
         System.out.println("Base58 addr2 = " + addr2.toBase58());
-        System.out.println("Base58 addr3 = " + addr3.toBase58());
 
         System.out.println("HexString addr1 = " + addr1.toHexString());
         System.out.println("HexString addr2 = " + addr2.toHexString());
-        System.out.println("HexString addr3 = " + addr3.toHexString());
+
+        try {
+            Address addr3 = Address.decodeBase58("TA5RWqSBZBpb8UvEfnGapRGcXnSaoaZ1Yu");
+            System.out.println("HexString addr3 = " + addr3.toHexString());
+            System.out.println("Base58 addr3 = " + addr3.toBase58());
+        } catch (SDKException ex){
+
+        }
     }
 
 }
