@@ -23,8 +23,10 @@ import com.github.ontio.account.Account;
 import com.github.ontio.common.Common;
 import com.github.ontio.common.ErrorCode;
 import com.github.ontio.common.Helper;
+import com.github.ontio.core.DataSignature;
 import com.github.ontio.core.transaction.Transaction;
 import com.github.ontio.core.asset.Sig;
+import com.github.ontio.crypto.Digest;
 import com.github.ontio.crypto.SignatureScheme;
 import com.github.ontio.sdk.exception.SDKException;
 import com.github.ontio.sdk.manager.*;
@@ -50,7 +52,7 @@ public class OntSdk {
 
 
     private static OntSdk instance = null;
-    public SignatureScheme signatureScheme = SignatureScheme.SHA256WITHECDSA;
+    public SignatureScheme defaultSignScheme = SignatureScheme.SHA256WITHECDSA;
     public long DEFAULT_GAS_LIMIT = 30000;
     public static synchronized OntSdk getInstance(){
         if(instance == null){
@@ -142,7 +144,7 @@ public class OntSdk {
      * @param scheme
      */
     public void setSignatureScheme(SignatureScheme scheme) {
-        signatureScheme = scheme;
+        defaultSignScheme = scheme;
         walletMgr.setSignatureScheme(scheme);
     }
 
@@ -164,8 +166,12 @@ public class OntSdk {
      */
     public void openWalletFile(String path) {
 
-        this.walletMgr = new WalletMgr(path,signatureScheme);
-        setSignatureScheme(signatureScheme);
+        try {
+            this.walletMgr = new WalletMgr(path,defaultSignScheme);
+            setSignatureScheme(defaultSignScheme);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -177,6 +183,9 @@ public class OntSdk {
      * @throws Exception
      */
     public Transaction addSign(Transaction tx,String addr,String password) throws Exception {
+        return addSign(tx,getWalletMgr().getAccount(addr,password));
+    }
+    public Transaction addSign(Transaction tx,Account acct) throws Exception {
         if(tx.sigs == null){
             tx.sigs = new Sig[0];
         }
@@ -188,12 +197,31 @@ public class OntSdk {
         sigs[tx.sigs.length].M = 1;
         sigs[tx.sigs.length].pubKeys = new byte[1][];
         sigs[tx.sigs.length].sigData = new byte[1][];
-        sigs[tx.sigs.length].pubKeys[0] = Helper.hexToBytes(getWalletMgr().getAccountInfo(addr,password).pubkey);
-        sigs[tx.sigs.length].sigData[0] = tx.sign(getWalletMgr().getAccount(addr,password),signatureScheme);
+        sigs[tx.sigs.length].pubKeys[0] = acct.serializePublicKey();
+        sigs[tx.sigs.length].sigData[0] = tx.sign(acct,defaultSignScheme);
         tx.sigs = sigs;
         return tx;
     }
 
+    public Transaction addMultiSign(Transaction tx,int M, Account[] acct) throws Exception {
+        if (tx.sigs == null) {
+            tx.sigs = new Sig[0];
+        }
+        Sig[] sigs = new Sig[tx.sigs.length + 1];
+        for (int i = 0; i < tx.sigs.length; i++) {
+            sigs[i] = tx.sigs[i];
+        }
+        sigs[tx.sigs.length] = new Sig();
+        sigs[tx.sigs.length].M = M;
+        sigs[tx.sigs.length].pubKeys = new byte[acct.length][];
+        sigs[tx.sigs.length].sigData = new byte[acct.length][];
+        for (int i = 0; i < acct.length; i++) {
+            sigs[tx.sigs.length].pubKeys[i] = acct[i].serializePublicKey();
+            sigs[tx.sigs.length].sigData[i] = tx.sign(acct[i], defaultSignScheme);
+        }
+        tx.sigs = sigs;
+        return tx;
+    }
     public Transaction signTx(Transaction tx, String address, String password) throws Exception{
         address = address.replace(Common.didont, "");
         signTx(tx, new Account[][]{{getWalletMgr().getAccount(address, password)}});
@@ -213,7 +241,7 @@ public class OntSdk {
             sigs[i].sigData = new byte[accounts[i].length][];
             for (int j = 0; j < accounts[i].length; j++) {
                 sigs[i].M++;
-                byte[] signature = tx.sign(accounts[i][j], signatureScheme);
+                byte[] signature = tx.sign(accounts[i][j], defaultSignScheme);
                 sigs[i].pubKeys[j] = accounts[i][j].serializePublicKey();
                 sigs[i].sigData[j] = signature;
             }
@@ -232,15 +260,37 @@ public class OntSdk {
      */
     public Transaction signTx(Transaction tx, Account[][] accounts, int[] M) throws Exception {
         if (M.length != accounts.length) {
-            throw new SDKException("M Error");
+            throw new SDKException(ErrorCode.ParamError);
         }
         tx = signTx(tx,accounts);
         for (int i = 0; i < tx.sigs.length; i++) {
             if (M[i] > tx.sigs[i].pubKeys.length || M[i] < 0) {
-                throw new SDKException("M Error");
+                throw new SDKException(ErrorCode.ParamError);
             }
             tx.sigs[i].M = M[i];
         }
         return tx;
+    }
+
+    public byte[] signatureData(com.github.ontio.account.Account acct, byte[] data) throws SDKException {
+        DataSignature sign = null;
+        try {
+            data = Digest.sha256(Digest.sha256(data));
+            sign = new DataSignature(defaultSignScheme, acct, data);
+            return sign.signature();
+        } catch (Exception e) {
+            throw new SDKException(e);
+        }
+    }
+
+    public boolean verifySignature(byte[] pubkey, byte[] data, byte[] signature) throws SDKException {
+        DataSignature sign = null;
+        try {
+            sign = new DataSignature();
+            data = Digest.sha256(Digest.sha256(data));
+            return sign.verifySignature(new com.github.ontio.account.Account(false, pubkey), data, signature);
+        } catch (Exception e) {
+            throw new SDKException(e);
+        }
     }
 }

@@ -19,6 +19,8 @@
 
 package com.github.ontio.common;
 
+import com.github.ontio.crypto.Digest;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.text.SimpleDateFormat;
@@ -28,17 +30,16 @@ import java.util.Map;
 
 /**
  * Byte Handle Helper
- *
  */
 public class Helper {
-	public static String getbyteStr(byte[] bs)  {
-    	StringBuilder sb = new StringBuilder();
-    	for(byte b: bs) {
-    		sb.append(" ").append(Byte.toUnsignedInt(b));
-    	}
-    	return sb.substring(1);
+    public static String getbyteStr(byte[] bs) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bs) {
+            sb.append(" ").append(Byte.toUnsignedInt(b));
+        }
+        return sb.substring(1);
     }
-	
+
     public static byte[] reverse(byte[] v) {
         byte[] result = new byte[v.length];
         for (int i = 0; i < v.length; i++) {
@@ -46,7 +47,7 @@ public class Helper {
         }
         return result;
     }
-    
+
     public static byte[] hexToBytes(String value) {
         if (value == null || value.length() == 0) {
             return new byte[0];
@@ -60,7 +61,7 @@ public class Helper {
         }
         return result;
     }
-    
+
     public static String toHexString(byte[] value) {
         StringBuilder sb = new StringBuilder();
         for (byte b : value) {
@@ -70,18 +71,19 @@ public class Helper {
         }
         return sb.toString();
     }
-    
+
     public static String reverse(String value) {
-    	return toHexString(reverse(hexToBytes(value)));
+        return toHexString(reverse(hexToBytes(value)));
     }
-    
+
     public static byte[] removePrevZero(byte[] bt) {
-		if(bt.length == 33 && bt[0] == 0) {
-			return Arrays.copyOfRange(bt, 1, 33);
-		}
-		return bt;
-	}
-    public static String getContractAddress(String codeHexStr,byte vmtype){
+        if (bt.length == 33 && bt[0] == 0) {
+            return Arrays.copyOfRange(bt, 1, 33);
+        }
+        return bt;
+    }
+
+    public static String getContractAddress(String codeHexStr, byte vmtype) {
         Address code = Address.toScriptHash(Helper.hexToBytes(codeHexStr));
         byte[] hash = code.toArray();
         hash[0] = vmtype;
@@ -98,23 +100,25 @@ public class Helper {
 
 
     public static String now() {
-		return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date());
-	}
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date());
+    }
 
-    public static String toString(Map<String,Object> map) {
+    public static String toString(Map<String, Object> map) {
         StringBuilder sb = new StringBuilder();
-        for(Map.Entry e:map.entrySet()) {
-            sb.append("\n").append(e.getKey()+": " + e.getValue());
+        for (Map.Entry e : map.entrySet()) {
+            sb.append("\n").append(e.getKey() + ": " + e.getValue());
         }
         return sb.toString();
     }
-    public static void print(Map<String,Object> map){
+
+    public static void print(Map<String, Object> map) {
         System.out.println(toString(map));
     }
 
-    public static int bytes2Int(byte[] src,ByteOrder byteOrder){
-        ByteBuffer buffer = ByteBuffer.wrap(src);
-        buffer.order(byteOrder);
-        return buffer.getInt();
+    public static String getPrefix(String text) throws Exception {
+        byte[] sha256 = Digest.sha256(Digest.sha256(text.getBytes()));
+        byte[] addresshash = Arrays.copyOfRange(sha256, 0, 4);
+        String s = Helper.toHexString(addresshash);
+	    return s;
     }
 }

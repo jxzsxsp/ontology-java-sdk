@@ -131,15 +131,14 @@ public class RestClient extends AbstractConnector {
     public Block getBlock(String hash) throws RestfulException {
         String rs = api.getBlock(hash, "1");
         Result rr = JSON.parseObject(rs, Result.class);
-        if (rr.Error == 0) {
-            try {
-                return Serializable.from(Helper.hexToBytes((String) rr.Result), Block.class);
-            } catch (InstantiationException | IllegalAccessException e) {
-                throw new RestfulException(ErrorCode.BlockDeserializeError, e);
-            }
+        if (rr.Error != 0) {
+            throw new RestfulException(to(rr));
         }
-        throw new RestfulException(to(rr));
-
+        try {
+            return Serializable.from(Helper.hexToBytes((String) rr.Result), Block.class);
+        } catch (InstantiationException | IllegalAccessException e) {
+            throw new RestfulException(ErrorCode.BlockDeserializeError, e);
+        }
     }
 
     @Override
@@ -258,6 +257,25 @@ public class RestClient extends AbstractConnector {
         Result rr = JSON.parseObject(rs, Result.class);
         if (rr.Error == 0) {
             return (String)rr.Result;
+        }
+        throw new RestfulException(to(rr));
+    }
+    @Override
+    public Object getMemPoolTxCount() throws ConnectorException, IOException{
+        String rs = api.getMemPoolTxCount();
+        Result rr = JSON.parseObject(rs, Result.class);
+        if (rr.Error == 0) {
+            return rr.Result;
+        }
+        throw new RestfulException(to(rr));
+    }
+
+    @Override
+    public Object getMemPoolTxState(String hash) throws ConnectorException, IOException{
+        String rs = api.getMemPoolTxState(hash);
+        Result rr = JSON.parseObject(rs, Result.class);
+        if (rr.Error == 0) {
+            return rr.Result;
         }
         throw new RestfulException(to(rr));
     }

@@ -115,7 +115,7 @@ public class ConnectMgrTest {
     @Test
     public void sendRawTransactionPreExec() throws Exception {
 
-        byte[] parabytes = ontSdk.nativevm().ontId().buildParams(Address.decodeBase58(address).toArray());
+        byte[] parabytes = com.github.ontio.smartcontract.nativevm.BuildParams.buildParams(Address.decodeBase58(address).toArray());
         Transaction tx = ontSdk.vm().makeInvokeCodeTransaction(ontContract,"balanceOf", parabytes, VmType.Native.value(), null,ontSdk.DEFAULT_GAS_LIMIT,0);
         Object obj = ontSdk.getConnect().sendRawTransactionPreExec(tx.toHexString());
         Assert.assertNotEquals(null,obj);
@@ -135,7 +135,7 @@ public class ConnectMgrTest {
     }
 
     @Test
-    public void getBlock() throws ConnectorException, IOException {
+    public void getBlock() throws ConnectorException, IOException,SDKException {
         int blockHeight =  ontSdk.getConnect().getBlockHeight();
         Block b = ontSdk.getConnect().getBlock(blockHeight);
         Assert.assertNotNull(b);
@@ -143,7 +143,7 @@ public class ConnectMgrTest {
     }
 
     @Test
-    public void getBlockByBlockhash() throws ConnectorException, IOException {
+    public void getBlockByBlockhash() throws ConnectorException, IOException,SDKException {
         int blockHeight =  ontSdk.getConnect().getBlockHeight();
         Block b2 = ontSdk.getConnect().getBlock(blockHeight);
         blockHash = b2.hash().toString();

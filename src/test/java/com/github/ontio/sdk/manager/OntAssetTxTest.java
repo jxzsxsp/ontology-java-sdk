@@ -54,8 +54,9 @@ public class OntAssetTxTest {
     }
     @Test
     public void sendTransfer() throws Exception {
-
-        String res= ontSdk.nativevm().ont().sendTransfer(info1.address,password,info2.address,100L,payer.address,password,ontSdk.DEFAULT_GAS_LIMIT,0);
+        com.github.ontio.account.Account sendAcct = ontSdk.getWalletMgr().getAccount(info1.address,password);
+        com.github.ontio.account.Account payerAcct = ontSdk.getWalletMgr().getAccount(payer.address,password);
+        String res= ontSdk.nativevm().ont().sendTransfer(sendAcct,info2.address,100L,payerAcct,ontSdk.DEFAULT_GAS_LIMIT,0);
 
 
         Assert.assertNotNull(res);
@@ -64,33 +65,23 @@ public class OntAssetTxTest {
     @Test
     public void makeTransfer() throws Exception {
 
-        Transaction tx = ontSdk.nativevm().ont().makeTransfer(info1.address,password,info2.address,100L,payer.address,ontSdk.DEFAULT_GAS_LIMIT,0);
+        Transaction tx = ontSdk.nativevm().ont().makeTransfer(info1.address,info2.address,100L,payer.address,ontSdk.DEFAULT_GAS_LIMIT,0);
         Assert.assertNotNull(tx);
     }
 
     @Test
-    public void sendTransferToMany() throws Exception {
-        String hash1 = ontSdk.nativevm().ont().sendTransferToMany(info1.address,password,new String[]{info2.address,info3.address},new long[]{100L,200L},payer.address,password,ontSdk.DEFAULT_GAS_LIMIT,0);
-        Assert.assertNotNull(hash1);
-    }
-
-    @Test
-    public void sendTransferFromMany() throws Exception {
-
-        String hash2 = ontSdk.nativevm().ont().sendTransferFromMany( new String[]{info1.address, info2.address}, new String[]{password, password}, info3.address, new long[]{1L, 2L},payer.address,password,ontSdk.DEFAULT_GAS_LIMIT,0);
-        Assert.assertNotNull(hash2);
-    }
-
-    @Test
     public void sendApprove() throws Exception {
-        ontSdk.nativevm().ont().sendApprove(info1.address,password,info2.address,10L,payer.address,password,ontSdk.DEFAULT_GAS_LIMIT,0);
-        long info1balance = ontSdk.nativevm().ont().queryBalanceOf(info1.address);
-        long info2balance = ontSdk.nativevm().ont().queryBalanceOf(info2.address);
+        com.github.ontio.account.Account sendAcct1 = ontSdk.getWalletMgr().getAccount(info1.address,password);
+        com.github.ontio.account.Account sendAcct2 = ontSdk.getWalletMgr().getAccount(info2.address,password);
+        com.github.ontio.account.Account payerAcct = ontSdk.getWalletMgr().getAccount(payer.address,password);
+        ontSdk.nativevm().ont().sendApprove(sendAcct1,sendAcct2.getAddressU160().toBase58(),10L,payerAcct,ontSdk.DEFAULT_GAS_LIMIT,0);
+        long info1balance = ontSdk.nativevm().ont().queryBalanceOf(sendAcct1.getAddressU160().toBase58());
+        long info2balance = ontSdk.nativevm().ont().queryBalanceOf(sendAcct2.getAddressU160().toBase58());
         Thread.sleep(6000);
 
-        long allo = ontSdk.nativevm().ont().queryAllowance(info1.address,info2.address);
-        Assert.assertTrue(allo > 0);
-        ontSdk.nativevm().ont().sendTransferFrom(info2.address,password,info1.address,info2.address,10L,payer.address,password,ontSdk.DEFAULT_GAS_LIMIT,0);
+        long allo = ontSdk.nativevm().ont().queryAllowance(sendAcct1.getAddressU160().toBase58(),sendAcct2.getAddressU160().toBase58());
+        Assert.assertTrue(allo == 10);
+        ontSdk.nativevm().ont().sendTransferFrom(sendAcct2,info1.address,sendAcct2.getAddressU160().toBase58(),10L,payerAcct,ontSdk.DEFAULT_GAS_LIMIT,0);
         Thread.sleep(6000);
         long info1balance2 = ontSdk.nativevm().ont().queryBalanceOf(info1.address);
         long info2balance2 = ontSdk.nativevm().ont().queryBalanceOf(info2.address);
@@ -104,7 +95,7 @@ public class OntAssetTxTest {
     @Test
     public void sendOngTransferFrom() throws Exception {
 
-        String res = ontSdk.nativevm().ong().claimOng(info1.address,password,info2.address,10L,payer.address,password,ontSdk.DEFAULT_GAS_LIMIT,0);
+        String res = ontSdk.nativevm().ong().claimOng(ontSdk.getWalletMgr().getAccount(info1.address,password),info2.address,10L,ontSdk.getWalletMgr().getAccount(payer.address,password),ontSdk.DEFAULT_GAS_LIMIT,0);
         Assert.assertNotNull(res);
     }
 

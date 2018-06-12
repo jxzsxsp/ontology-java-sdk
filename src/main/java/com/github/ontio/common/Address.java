@@ -19,6 +19,8 @@
 
 package com.github.ontio.common;
 
+import com.github.ontio.core.scripts.ScriptBuilder;
+import com.github.ontio.core.scripts.ScriptOp;
 import com.github.ontio.crypto.Base58;
 import com.github.ontio.crypto.Digest;
 import com.github.ontio.io.BinaryWriter;
@@ -26,16 +28,17 @@ import com.github.ontio.sdk.exception.SDKException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.Arrays;
 
 /**
  * Custom type which inherits base class defines 20-bit data,
  * it mostly used to defined contract address
- *
  */
 public class Address extends UIntBase implements Comparable<Address> {
     public static final Address ZERO = new Address();
-    public static final byte COIN_VERSION = 0x41;
+    public static final byte COIN_VERSION_ONT = 0x41;
+    public static final byte COIN_VERSION_NEO = 0x17;
 
     public Address() {
         this(null);
@@ -45,18 +48,6 @@ public class Address extends UIntBase implements Comparable<Address> {
         super(20, value);
     }
 
-    @Override
-    public int compareTo(Address other) {
-        byte[] x = this.data_bytes;
-        byte[] y = other.data_bytes;
-        for (int i = x.length - 1; i >= 0; i--) {
-            int r = Byte.toUnsignedInt(x[i]) - Byte.toUnsignedInt(y[i]);
-            if (r != 0) {
-                return r;
-            }
-        }
-        return 0;
-    }
 
     public static Address parse(String value) {
         if (value == null) {
@@ -90,8 +81,37 @@ public class Address extends UIntBase implements Comparable<Address> {
     public static Address addressFromPubKey(byte[] publicKey) {
         byte[] bys = Digest.hash160(publicKey);
         bys[0] = 0x01;
-        Address u160 = new Address(bys);
-        return u160;
+        return new Address(bys);
+
+    }
+
+    public static Address addressFromPubKeyNeo(byte[] publicKey) {
+        ScriptBuilder sb = new ScriptBuilder();
+        sb.push(publicKey);
+        sb.add(ScriptOp.OP_CHECKSIG);
+        return new Address(Digest.hash160(sb.toArray()));
+    }
+
+    public static Address addressFromMultiPubKeysNeo(int m, byte[]... publicKeys) throws Exception {
+        if (m <= 0 || m > publicKeys.length || publicKeys.length > 24) {
+            throw new SDKException(ErrorCode.ParamError);
+        }
+        try (ScriptBuilder sb = new ScriptBuilder()) {
+            sb.push(BigInteger.valueOf(m));
+            publicKeys = Arrays.stream(publicKeys).sorted((o1, o2) -> {
+                return Helper.toHexString(o1).compareTo(Helper.toHexString(o2));
+            }).toArray(byte[][]::new);
+
+            for (byte[] publicKey : publicKeys) {
+                System.out.println(Helper.toHexString(publicKey));
+                sb.push(publicKey);
+            }
+            System.out.println(Helper.toHexString(sb.toArray()));
+            sb.push(BigInteger.valueOf(publicKeys.length));
+            sb.add(ScriptOp.OP_CHECKMULTISIG);
+            System.out.println(Helper.toHexString(sb.toArray()));
+            return new Address(Digest.hash160(sb.toArray()));
+        }
     }
 
     public static Address addressFromMultiPubKeys(int m, byte[]... publicKeys) throws Exception {
@@ -118,21 +138,13 @@ public class Address extends UIntBase implements Comparable<Address> {
         }
     }
 
-    public String toBase58() {
-        byte[] data = new byte[25];
-        data[0] = COIN_VERSION;
-        System.arraycopy(toArray(), 0, data, 1, 20);
-        byte[] checksum = Digest.sha256(Digest.sha256(data, 0, 21));
-        System.arraycopy(checksum, 0, data, 21, 4);
-        return Base58.encode(data);
-    }
 
     public static Address decodeBase58(String address) throws SDKException {
         byte[] data = Base58.decode(address);
         if (data.length != 25) {
-            throw new SDKException(ErrorCode.ParamError+"address length is wrong");
+            throw new SDKException(ErrorCode.ParamError + "address length is wrong");
         }
-        if (data[0] != COIN_VERSION) {
+        if (data[0] != COIN_VERSION_ONT) {
             throw new SDKException(ErrorCode.ParamError);
         }
         byte[] checksum = Digest.sha256(Digest.sha256(data, 0, 21));
@@ -148,6 +160,28 @@ public class Address extends UIntBase implements Comparable<Address> {
 
     public static Address toScriptHash(byte[] script) {
         return new Address(Digest.hash160(script));
+    }
+
+    @Override
+    public int compareTo(Address other) {
+        byte[] x = this.data_bytes;
+        byte[] y = other.data_bytes;
+        for (int i = x.length - 1; i >= 0; i--) {
+            int r = Byte.toUnsignedInt(x[i]) - Byte.toUnsignedInt(y[i]);
+            if (r != 0) {
+                return r;
+            }
+        }
+        return 0;
+    }
+
+    public String toBase58() {
+        byte[] data = new byte[25];
+        data[0] = COIN_VERSION_ONT;
+        System.arraycopy(toArray(), 0, data, 1, 20);
+        byte[] checksum = Digest.sha256(Digest.sha256(data, 0, 21));
+        System.arraycopy(checksum, 0, data, 21, 4);
+        return Base58.encode(data);
     }
 
     @Override

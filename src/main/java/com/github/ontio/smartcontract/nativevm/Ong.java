@@ -31,7 +31,6 @@ import com.github.ontio.core.asset.TransferFrom;
 import com.github.ontio.core.asset.Transfers;
 import com.github.ontio.core.transaction.Transaction;
 import com.github.ontio.io.BinaryWriter;
-import com.github.ontio.network.exception.ConnectorException;
 import com.github.ontio.sdk.exception.SDKException;
 import com.github.ontio.sdk.info.AccountInfo;
 
@@ -48,31 +47,38 @@ public class Ong {
     private final String ontContract = "ff00000000000000000000000000000000000001";
     private final String ongContract = "ff00000000000000000000000000000000000002";
     private int precision = 1;
+
     public Ong(OntSdk sdk) {
         this.sdk = sdk;
     }
+
     public String getContractAddress() {
         return ongContract;
     }
 
     /**
      *
-     * @param sendAddr
-     * @param password
+     * @param sendAcct
      * @param recvAddr
      * @param amount
+     * @param payerAcct
      * @param gaslimit
      * @param gasprice
      * @return
      * @throws Exception
      */
-    public String sendTransfer(String sendAddr, String password, String recvAddr, long amount,String payer,String payerpwd,long gaslimit,long gasprice) throws Exception {
-        if (amount <= 0 || gasprice < 0) {
-            throw new SDKException(ErrorCode.AmountError);
+    public String sendTransfer(Account sendAcct, String recvAddr, long amount, Account payerAcct, long gaslimit, long gasprice) throws Exception {
+        if (sendAcct == null || payerAcct == null ) {
+            throw new SDKException(ErrorCode.ParamErr("parameters should not be null"));
         }
-        Transaction tx = makeTransfer(sendAddr, password, recvAddr, amount,payer,gaslimit,gasprice);
-        sdk.signTx(tx, sendAddr, password);
-        System.out.println(tx.toHexString());
+        if (amount <= 0 || gasprice < 0 || gaslimit < 0) {
+            throw new SDKException(ErrorCode.ParamErr("amount or gasprice or gaslimit should not be less than 0"));
+        }
+        Transaction tx = makeTransfer(sendAcct.getAddressU160().toBase58(), recvAddr, amount, payerAcct.getAddressU160().toBase58(), gaslimit, gasprice);
+        sdk.signTx(tx, new Account[][]{{sendAcct}});
+        if(!sendAcct.equals(payerAcct)){
+            sdk.addSign(tx,payerAcct);
+        }
         boolean b = sdk.getConnect().sendRawTransaction(tx.toHexString());
         if (b) {
             return tx.hash().toString();
@@ -81,9 +87,7 @@ public class Ong {
     }
 
     /**
-     *
      * @param sendAddr
-     * @param password
      * @param recvAddr
      * @param amount
      * @param gaslimit
@@ -91,203 +95,95 @@ public class Ong {
      * @return
      * @throws Exception
      */
-    public Transaction makeTransfer(String sendAddr, String password, String recvAddr, long amount,String payer,long gaslimit,long gasprice) throws Exception {
-        if (amount <= 0 || gasprice < 0) {
-            throw new SDKException(ErrorCode.AmountError);
+    public Transaction makeTransfer(String sendAddr, String recvAddr, long amount, String payer, long gaslimit, long gasprice) throws Exception {
+        if(sendAddr==null || sendAddr.equals("")|| recvAddr==null||recvAddr.equals("") ||
+                payer==null||payer.equals("")){
+            throw new SDKException(ErrorCode.ParamErr("parameters should not be null"));
         }
-        amount = amount * precision;
-        AccountInfo sender = sdk.getWalletMgr().getAccountInfo(sendAddr, password);
-        State state = new State(Address.addressFromPubKey(sender.pubkey), Address.decodeBase58(recvAddr), amount);
+        if (amount <= 0 || gasprice < 0 || gaslimit < 0) {
+            throw new SDKException(ErrorCode.ParamErr("amount or gasprice or gaslimit should not be less than 0"));
+        }
+        State state = new State(Address.decodeBase58(sendAddr), Address.decodeBase58(recvAddr), amount);
         Transfers transfers = new Transfers(new State[]{state});
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract,"transfer",transfers.toArray(), VmType.Native.value(), payer,gaslimit,gasprice);
+        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract, "transfer", transfers.toArray(), VmType.Native.value(), payer, gaslimit, gasprice);
         return tx;
     }
 
+    public Transaction makeTransfer(State[] states, String payer, long gaslimit, long gasprice) throws Exception {
+        if (states == null || payer == null || payer.equals("")) {
+            throw new SDKException(ErrorCode.ParamErr("parameters should not be null"));
+        }
+        if(gasprice < 0 || gaslimit < 0){
+            throw new SDKException(ErrorCode.ParamError);
+        }
+        Transfers transfers = new Transfers(states);
+        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract, "transfer", transfers.toArray(), VmType.Native.value(), payer, gaslimit, gasprice);
+        return tx;
+    }
     /**
-     *
      * @param address
      * @return
      * @throws Exception
      */
     public long queryBalanceOf(String address) throws Exception {
-        byte[] parabytes = buildParams(Address.decodeBase58(address).toArray());
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract,"balanceOf", parabytes, VmType.Native.value(), null,0,0);
+        if(address == null|| address.equals("")){
+            throw new SDKException(ErrorCode.ParamErr("address should not be null"));
+        }
+        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract, "balanceOf",Address.decodeBase58(address).toArray(), VmType.Native.value(), null, 0, 0);
         Object obj = sdk.getConnect().sendRawTransactionPreExec(tx.toHexString());
-        String res = ((JSONObject)obj).getString("Result");
-        if (("").equals(res)) {
+        String res = ((JSONObject) obj).getString("Result");
+        if (res==null||res.equals("")) {
             return 0;
         }
-        return Long.valueOf(res,16);
+        return Long.valueOf(res, 16);
     }
 
     /**
-     *
      * @param fromAddr
      * @param toAddr
      * @return
-     * @throws SDKException
-     * @throws ConnectorException
-     * @throws IOException
+     * @throws Exception
      */
-    public long queryAllowance(String fromAddr,String toAddr) throws SDKException, ConnectorException, IOException {
-        byte[] parabytes = buildParams(Address.decodeBase58(fromAddr).toArray(),Address.decodeBase58(toAddr).toArray());
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract,"allowance", parabytes, VmType.Native.value(), null,0,0);
+    public long queryAllowance(String fromAddr, String toAddr) throws Exception {
+        if(fromAddr==null||fromAddr.equals("")||toAddr==null||toAddr.equals("")){
+            throw new SDKException(ErrorCode.ParamErr("parameter should not be null"));
+        }
+        byte[] parabytes = BuildParams.buildParams(Address.decodeBase58(fromAddr), Address.decodeBase58(toAddr));
+        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract, "allowance", parabytes, VmType.Native.value(), null, 0, 0);
         Object obj = sdk.getConnect().sendRawTransactionPreExec(tx.toHexString());
-        String res = ((JSONObject)obj).getString("Result");
-        if (("").equals(res)) {
+        String res = ((JSONObject) obj).getString("Result");
+        if (res==null||res.equals("")) {
             return 0;
         }
-        return Long.valueOf(res,16);
+        return Long.valueOf(res, 16);
     }
 
     /**
      *
-     * @param sendAddr
-     * @param password
+     * @param sendAcct
      * @param recvAddr
      * @param amount
+     * @param payerAcct
      * @param gaslimit
      * @param gasprice
      * @return
      * @throws Exception
      */
-    public String sendApprove(String sendAddr, String password, String recvAddr, long amount,String payer,String payerpwd,long gaslimit,long gasprice) throws Exception {
-        if (amount <= 0 || gasprice < 0) {
-            throw new SDKException(ErrorCode.AmountError);
+    public String sendApprove(Account sendAcct, String recvAddr, long amount, Account payerAcct, long gaslimit, long gasprice) throws Exception {
+        if(sendAcct==null || payerAcct==null){
+            throw new SDKException(ErrorCode.ParamErr("parameters should not be null"));
         }
-        AccountInfo sender = sdk.getWalletMgr().getAccountInfo(sendAddr, password);
-        State state = new State(Address.addressFromPubKey(sender.pubkey), Address.decodeBase58(recvAddr), amount);
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract,"approve", state.toArray(), VmType.Native.value(), payer,gaslimit,gasprice);
-        sdk.signTx(tx,sendAddr,password);
-        boolean b = sdk.getConnect().sendRawTransaction(tx.toHexString());
-        if(b){
-            return tx.hash().toHexString();
+        if (amount <= 0 || gasprice < 0 || gaslimit < 0) {
+            throw new SDKException(ErrorCode.ParamErr("amount or gasprice or gaslimit should not be less than 0"));
         }
-        return null;
-    }
-
-    /**
-     *
-     * @param sendAddr
-     * @param password
-     * @param fromAddr
-     * @param toAddr
-     * @param amount
-     * @param gaslimit
-     * @param gasprice
-     * @return
-     * @throws Exception
-     */
-    public String sendTransferFrom(String sendAddr, String password, String fromAddr, String toAddr, long amount,String payer,String payerpwd,long gaslimit,long gasprice) throws Exception {
-        if (amount <= 0 || gasprice < 0) {
-            throw new SDKException(ErrorCode.AmountError);
+        Transaction tx = makeApprove(sendAcct.getAddressU160().toBase58(),recvAddr,amount,payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+        sdk.signTx(tx, new Account[][]{{sendAcct}});
+        if(!sendAcct.equals(payerAcct)){
+            sdk.addSign(tx,payerAcct);
         }
-        AccountInfo sender = sdk.getWalletMgr().getAccountInfo(sendAddr, password);
-        TransferFrom transferFrom = new TransferFrom(Address.addressFromPubKey(sender.pubkey),Address.decodeBase58(fromAddr), Address.decodeBase58(toAddr), amount);
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract,"transferFrom", transferFrom.toArray(), VmType.Native.value(), payer,gaslimit,gasprice);
-        sdk.signTx(tx,sendAddr,password);
-        boolean b = sdk.getConnect().sendRawTransaction(tx.toHexString());
-        if(b){
-            return tx.hash().toHexString();
-        }
-        return null;
-    }
-
-    /**
-     *
-     * @return
-     * @throws Exception
-     */
-    public String queryName() throws Exception {
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract,"name", "".getBytes(), VmType.Native.value(), null,0,0);
-        Object obj = sdk.getConnect().sendRawTransactionPreExec(tx.toHexString());
-        String res = ((JSONObject)obj).getString("Result");
-        return new String(Helper.hexToBytes(res));
-    }
-
-    /**
-     *
-     * @return
-     * @throws Exception
-     */
-    public String querySymbol() throws Exception {
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract,"symbol", "".getBytes(), VmType.Native.value(), null,0,0);
-        Object obj = sdk.getConnect().sendRawTransactionPreExec(tx.toHexString());
-        String res = ((JSONObject)obj).getString("Result");
-        return new String(Helper.hexToBytes(res));
-    }
-
-    /**
-     *
-     * @return
-     * @throws Exception
-     */
-    public long queryDecimals() throws Exception {
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract,"decimals", "".getBytes(), VmType.Native.value(), null,0,0);
-        Object obj = sdk.getConnect().sendRawTransactionPreExec(tx.toHexString());
-        String res = ((JSONObject)obj).getString("Result");
-        if (("").equals(res)) {
-            return 0;
-        }
-        return Long.valueOf(res,16);
-    }
-
-    /**
-     *
-     * @return
-     * @throws Exception
-     */
-    public long queryTotalSupply() throws Exception {
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract,"totalSupply", "".getBytes(), VmType.Native.value(), null,0,0);
-        Object obj = sdk.getConnect().sendRawTransactionPreExec(tx.toHexString());
-        String res = ((JSONObject)obj).getString("Result");
-        if (("").equals(res)) {
-            return 0;
-        }
-        return Long.valueOf(res,16);
-    }
-
-    private byte[] buildParams(byte[] ...params) throws SDKException {
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        BinaryWriter writer = new BinaryWriter(byteArrayOutputStream);
-        try {
-            for (byte[] param : params) {
-                writer.writeVarBytes(param);
-            }
-        } catch (IOException e) {
-            throw new SDKException(ErrorCode.WriteVarBytesError);
-        }
-        return byteArrayOutputStream.toByteArray();
-    }
-
-    /**
-     *
-     * @param sendAddr
-     * @param password
-     * @param recvAddr
-     * @param amount
-     * @param gaslimit
-     * @param gasprice
-     * @return
-     * @throws Exception
-     */
-    public String sendTransferToMany(String sendAddr, String password, String[] recvAddr, long[] amount,String payer,String payerpwd,long gaslimit,long gasprice) throws Exception {
-        if(gasprice < 0){
-            throw new SDKException(ErrorCode.AmountError);
-        }
-        if (recvAddr.length != amount.length){
-            throw new SDKException(ErrorCode.ParamLengthNotSame);
-        }
-        for (long amou : amount) {
-            if (amou <= 0) {
-                throw new SDKException(ErrorCode.AmountError);
-            }
-        }
-        Transaction tx = makeTransferToMany(sendAddr,password,recvAddr,amount,payer,gaslimit,gasprice);
-        sdk.signTx(tx, new Account[][]{{sdk.getWalletMgr().getAccount(sendAddr, password)}});
         boolean b = sdk.getConnect().sendRawTransaction(tx.toHexString());
         if (b) {
-            return tx.hash().toString();
+            return tx.hash().toHexString();
         }
         return null;
     }
@@ -295,7 +191,6 @@ public class Ong {
     /**
      *
      * @param sendAddr
-     * @param password
      * @param recvAddr
      * @param amount
      * @param payer
@@ -304,74 +199,46 @@ public class Ong {
      * @return
      * @throws Exception
      */
-    public Transaction makeTransferToMany(String sendAddr, String password, String[] recvAddr, long[] amount,String payer,long gaslimit,long gasprice) throws Exception {
-        if(gasprice < 0){
-            throw new SDKException(ErrorCode.AmountError);
+    public Transaction makeApprove(String sendAddr,String recvAddr,long amount,String payer,long gaslimit,long gasprice) throws Exception {
+        if(sendAddr==null || sendAddr.equals("")||recvAddr==null || recvAddr.equals("")||
+                payer==null||payer.equals("")){
+            throw new SDKException(ErrorCode.ParamErr("parameters should not be null"));
         }
-        if (recvAddr.length != amount.length){
-            throw new SDKException(ErrorCode.ParamLengthNotSame);
+        if (amount <= 0 || gasprice < 0 || gaslimit < 0) {
+            throw new SDKException(ErrorCode.ParamErr("amount or gasprice or gaslimit should not be less than 0"));
         }
-        for (long amou : amount) {
-            if (amou <= 0) {
-                throw new SDKException(ErrorCode.AmountError);
-            }
-        }
-        AccountInfo sender = sdk.getWalletMgr().getAccountInfo(sendAddr, password);
-        State[] states = new State[recvAddr.length];
-        if (amount.length != recvAddr.length) {
-            throw new Exception(ErrorCode.ParamError);
-        }
-        for (int i = 0; i < recvAddr.length; i++) {
-            amount[i] = amount[i] * precision;
-            states[i] = new State(Address.addressFromPubKey(sender.pubkey), Address.decodeBase58(recvAddr[i]), amount[i]);
-        }
-        Transfers transfers = new Transfers(states);
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract,"transfer",transfers.toArray(), VmType.Native.value(), payer,gaslimit,gasprice);
+        State state = new State(Address.decodeBase58(sendAddr), Address.decodeBase58(recvAddr), amount);
+        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract,"approve", state.toArray(), VmType.Native.value(), payer,gaslimit,gasprice);
         return tx;
     }
 
     /**
      *
-     * @param sendAddr
-     * @param password
-     * @param recvAddr
+     * @param sendAcct
+     * @param fromAddr
+     * @param toAddr
      * @param amount
+     * @param payerAcct
      * @param gaslimit
      * @param gasprice
      * @return
      * @throws Exception
      */
-    public String sendTransferFromMany(String[] sendAddr, String[] password, String recvAddr, long[] amount,String payer,String payerpwd,long gaslimit,long gasprice) throws Exception {
-        if(gasprice < 0){
-            throw new SDKException(ErrorCode.AmountError);
+    public String sendTransferFrom(Account sendAcct, String fromAddr, String toAddr, long amount, Account payerAcct, long gaslimit, long gasprice) throws Exception {
+        if(sendAcct==null || payerAcct==null){
+            throw new SDKException(ErrorCode.ParamErr("parameters should not be null"));
         }
-        if (sendAddr.length != password.length){
-            throw new SDKException(ErrorCode.ParamLengthNotSame);
+        if (amount <= 0 || gasprice < 0 || gaslimit < 0) {
+            throw new SDKException(ErrorCode.ParamErr("amount or gasprice or gaslimit should not be less than 0"));
         }
-        for (long amou : amount) {
-            if (amou <= 0) {
-                throw new SDKException(ErrorCode.AmountError);
-            }
+        Transaction tx = makeTransferFrom(sendAcct.getAddressU160().toBase58(),fromAddr,toAddr,amount,payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+        sdk.signTx(tx, new Account[][]{{sendAcct}});
+        if(!sendAcct.equals(payerAcct)){
+            sdk.addSign(tx,payerAcct);
         }
-        if (sendAddr == null || sendAddr.length != password.length) {
-            throw new Exception(ErrorCode.SenderAmtNotEqPasswordAmt);
-        }
-        Transaction tx = makeTransferFromMany(sendAddr,password,recvAddr,amount,payer,gaslimit,gasprice);
-        Account[][] acct = Arrays.stream(sendAddr).map(p -> {
-            for (int i = 0; i < sendAddr.length; i++) {
-                if (sendAddr[i].equals(p)) {
-                    try {
-                        return new Account[]{sdk.getWalletMgr().getAccount(p, password[i])};
-                    } catch (Exception e) {
-                    }
-                }
-            }
-            return null;
-        }).toArray(Account[][]::new);
-        sdk.signTx(tx, acct);
         boolean b = sdk.getConnect().sendRawTransaction(tx.toHexString());
         if (b) {
-            return tx.hash().toString();
+            return tx.hash().toHexString();
         }
         return null;
     }
@@ -379,8 +246,8 @@ public class Ong {
     /**
      *
      * @param sendAddr
-     * @param password
-     * @param recvAddr
+     * @param fromAddr
+     * @param toAddr
      * @param amount
      * @param payer
      * @param gaslimit
@@ -388,63 +255,104 @@ public class Ong {
      * @return
      * @throws Exception
      */
-    public Transaction makeTransferFromMany(String[] sendAddr, String[] password, String recvAddr, long[] amount,String payer,long gaslimit,long gasprice) throws Exception {
-        if(gasprice < 0){
-            throw new SDKException(ErrorCode.AmountError);
+    public Transaction makeTransferFrom(String sendAddr, String fromAddr, String toAddr,long amount,String payer,long gaslimit,long gasprice) throws Exception {
+        if(sendAddr==null || sendAddr.equals("")||fromAddr==null||fromAddr.equals("")||toAddr==null||toAddr.equals("")){
+            throw new SDKException(ErrorCode.ParamErr("parameters should not be null"));
         }
-        if (sendAddr.length != password.length){
-            throw new SDKException(ErrorCode.ParamLengthNotSame);
+        if (amount <= 0 || gasprice < 0 || gaslimit < 0) {
+            throw new SDKException(ErrorCode.ParamErr("amount or gasprice or gaslimit should not be less than 0"));
         }
-        for (long amou : amount) {
-            if (amou <= 0) {
-                throw new SDKException(ErrorCode.AmountError);
-            }
-        }
-        if (sendAddr == null || sendAddr.length != password.length) {
-            throw new Exception(ErrorCode.SenderAmtNotEqPasswordAmt);
-        }
-        State[] states = new State[sendAddr.length];
-        for (int i = 0; i < sendAddr.length; i++) {
-            AccountInfo sender = sdk.getWalletMgr().getAccountInfo(sendAddr[i], password[i]);
-            amount[i] = amount[i] * precision;
-            states[i] = new State(Address.addressFromPubKey(sender.pubkey), Address.decodeBase58(recvAddr), amount[i]);
-        }
-
-        Transfers transfers = new Transfers(states);
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract,"transfer", transfers.toArray(), VmType.Native.value(), payer,gaslimit,gasprice);
-        return null;
+        TransferFrom transferFrom = new TransferFrom(Address.decodeBase58(sendAddr),Address.decodeBase58(fromAddr), Address.decodeBase58(toAddr), amount);
+        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract,"transferFrom", transferFrom.toArray(), VmType.Native.value(), payer,gaslimit,gasprice);
+        return tx;
     }
 
     /**
-     *
+     * @return
+     * @throws Exception
+     */
+    public String queryName() throws Exception {
+        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract, "name", "".getBytes(), VmType.Native.value(), null, 0, 0);
+        Object obj = sdk.getConnect().sendRawTransactionPreExec(tx.toHexString());
+        String res = ((JSONObject) obj).getString("Result");
+        return new String(Helper.hexToBytes(res));
+    }
+
+    /**
+     * @return
+     * @throws Exception
+     */
+    public String querySymbol() throws Exception {
+        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract, "symbol", "".getBytes(), VmType.Native.value(), null, 0, 0);
+        Object obj = sdk.getConnect().sendRawTransactionPreExec(tx.toHexString());
+        String res = ((JSONObject) obj).getString("Result");
+        return new String(Helper.hexToBytes(res));
+    }
+
+    /**
+     * @return
+     * @throws Exception
+     */
+    public long queryDecimals() throws Exception {
+        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract, "decimals", "".getBytes(), VmType.Native.value(), null, 0, 0);
+        Object obj = sdk.getConnect().sendRawTransactionPreExec(tx.toHexString());
+        String res = ((JSONObject) obj).getString("Result");
+        if (("").equals(res)) {
+            return 0;
+        }
+        return Long.valueOf(res, 16);
+    }
+
+    /**
+     * @return
+     * @throws Exception
+     */
+    public long queryTotalSupply() throws Exception {
+        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract, "totalSupply", "".getBytes(), VmType.Native.value(), null, 0, 0);
+        Object obj = sdk.getConnect().sendRawTransactionPreExec(tx.toHexString());
+        String res = ((JSONObject) obj).getString("Result");
+        if (res==null||res.equals("")) {
+            return 0;
+        }
+        return Long.valueOf(res, 16);
+    }
+
+    /**
      * @param address
      * @return
      * @throws Exception
      */
-    public String unclaimOng(String address)  throws Exception{
-        String uncliamong = sdk.getConnect().getAllowance("ong",Address.parse(ontContract).toBase58(),address);
+    public String unclaimOng(String address) throws Exception {
+        if(address==null||address.equals("")){
+            throw new SDKException(ErrorCode.ParamErr("address should not be null"));
+        }
+        String uncliamong = sdk.getConnect().getAllowance("ong", Address.parse(ontContract).toBase58(), address);
         return uncliamong;
     }
 
     /**
      *
-     * @param sendAddr
-     * @param password
-     * @param to
+     * @param sendAcct
+     * @param toAddr
      * @param amount
-     * @param payer
-     * @param payerpwd
+     * @param payerAcct
      * @param gaslimit
      * @param gasprice
      * @return
      * @throws Exception
      */
-    public String claimOng(String sendAddr, String password, String to, long amount,String payer,String payerpwd,long gaslimit,long gasprice) throws Exception {
-        if (amount <= 0 || gasprice <0) {
-            throw new SDKException(ErrorCode.AmountError);
+    public String claimOng(Account sendAcct, String toAddr, long amount, Account payerAcct, long gaslimit, long gasprice) throws Exception {
+        if (sendAcct == null ||  payerAcct == null ) {
+            throw new SDKException(ErrorCode.ParamError);
         }
-        Transaction tx = makeClaimOng(sendAddr,password,to,amount,payer,gaslimit,gasprice);
-        sdk.signTx(tx, sendAddr, password);
+        if (amount <= 0 || gaslimit<0||gasprice < 0) {
+            throw new SDKException(ErrorCode.ParamErr("amount or gaslimit gasprice should not be less than 0"));
+        }
+        Transaction tx = makeClaimOng(sendAcct.getAddressU160().toBase58(), toAddr, amount, payerAcct.getAddressU160().toBase58(), gaslimit, gasprice);
+        sdk.signTx(tx, new Account[][]{{sendAcct}});
+        if(!sendAcct.equals(payerAcct)){
+            sdk.addSign(tx,payerAcct);
+        }
         boolean b = sdk.getConnect().sendRawTransaction(tx.toHexString());
         if (b) {
             return tx.hash().toString();
@@ -453,10 +361,8 @@ public class Ong {
     }
 
     /**
-     *
-     * @param sendAddr
-     * @param password
-     * @param to
+     * @param claimer
+     * @param toAddr
      * @param amount
      * @param payer
      * @param gaslimit
@@ -464,13 +370,15 @@ public class Ong {
      * @return
      * @throws Exception
      */
-    public Transaction makeClaimOng(String sendAddr, String password, String to, long amount,String payer,long gaslimit,long gasprice) throws Exception {
-        if (amount <= 0 || gasprice <0) {
-            throw new SDKException(ErrorCode.AmountError);
+    public Transaction makeClaimOng(String claimer, String toAddr, long amount, String payer, long gaslimit, long gasprice) throws Exception {
+        if(claimer==null||claimer.equals("")||toAddr==null||toAddr.equals("")||payer==null||payer.equals("")){
+            throw new SDKException(ErrorCode.ParamError);
         }
-        AccountInfo sender = sdk.getWalletMgr().getAccountInfo(sendAddr, password);
-        TransferFrom transferFrom = new TransferFrom(Address.addressFromPubKey(sender.pubkey),Address.parse(ontContract),Address.decodeBase58(to),amount);
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract,"transferFrom", transferFrom.toArray(), VmType.Native.value(), payer,gaslimit,gasprice);
+        if (amount <= 0 || gaslimit<0||gasprice < 0) {
+            throw new SDKException(ErrorCode.ParamErr("amount or gaslimit gasprice should not be less than 0"));
+        }
+        TransferFrom transferFrom = new TransferFrom(Address.decodeBase58(claimer), Address.parse(ontContract), Address.decodeBase58(toAddr), amount);
+        Transaction tx = sdk.vm().makeInvokeCodeTransaction(ongContract, "transferFrom", transferFrom.toArray(), VmType.Native.value(), payer, gaslimit, gasprice);
         return tx;
     }
 }

@@ -7,7 +7,8 @@
 * 钱包管理接口
 * 数字资产接口
 * 数字身份接口
-* 智能合约部署与调用接口
+* NEO智能合约部署与调用接口
+* Native合约调用
 
 ### 初始化接口：
 
@@ -47,7 +48,9 @@
    16 | ontSdk.getConnect().sendRawTransaction("txhexString")    |  发送交易
    17 | ontSdk.getConnect().sendRawTransaction(Transaction)      |  发送交易
    18 | ontSdk.getConnect().sendRawTransactionPreExec()          |  发送预执行交易
-   18 | ontSdk.getConnect().getAllowance("ont","from","to")      |  查询允许使用值
+   19 | ontSdk.getConnect().getAllowance("ont","from","to")      |  查询允许使用值
+   20 | ontSdk.getConnect().getMemPoolTxCount()                  |  查询交易池中交易总量
+   21 | ontSdk.getConnect().getMemPoolTxState()                  |  查询交易池中交易状态
 ```  
 
 ### 钱包管理接口：
@@ -91,27 +94,39 @@
 2.Nep-5智能合约数字资产
 
 * 原生数字资产：
+ont:
 ```
 
       |                                         Main   Function                                                     |           Description            
  -----|-------------------------------------------------------------------------------------------------------------|---------------------------------------------
-    1 | String sendTransfer(String assetName, String sendAddr, String pwd, String recvAddr, long amount,long gas)   |  转账
-    2 | long queryBalanceOf(String assetName, String address)                                                       |  查询余额                              
-    3 | long queryAllowance(String assetName,String fromAddr,String toAddr)                                         |  查询Allowance
-    4 | String sendApprove(String assetName ,String sendAddr, String pwd, String recvAddr, long amount,long gas)    |  发送Approve    
-    5 | String sendTransferFrom(String asset,String sendAddr,String pwd,String from,String to,long amount,long gas) |  发送TransferFrom 
-    6 | String queryName(String assetName)                                                                          |  查询资产名
-    7 | String querySymbol(String assetName)                                                                        |  查询资产Symbol
-    8 | long queryDecimals(String assetName)                                                                        |  查询精度
-    9 | long queryTotalSupply(String assetName)                                                                     |  查询总供应量
-   10 | String cliamOng(String sendAddr, String password, String to, long amount,long gas)                          |  提取ong
+    1 | String sendTransfer(Account sendAcct, String recvAddr, long amount,Account payerAcct,long gaslimit,long gasprice)   |  转账
+    2 | long queryBalanceOf(String address)                                                       |  查询余额
+    3 | long queryAllowance(String fromAddr,String toAddr)                                         |  查询Allowance
+    4 | String sendApprove(Account sendAcct, String recvAddr, long amount,Account payerAcct,long gaslimit,long gasprice)    |  发送Approve
+    5 | String sendTransferFrom(Account sendAcct, String fromAddr, String toAddr,long amount,Account payerAcct,long gaslimit,long gasprice) |  发送TransferFrom
+    6 | String queryName()                                                                          |  查询资产名
+    7 | String querySymbol()                                                                        |  查询资产Symbol
+    8 | long queryDecimals()                                                                        |  查询精度
+    9 | long queryTotalSupply()                                                                     |  查询总供应量
+      
+```
+ong:
+```
+
+      |                                         Main   Function                                                     |           Description            
+ -----|-------------------------------------------------------------------------------------------------------------|---------------------------------------------
+    1 | String sendTransfer(Account sendAcct, String recvAddr, long amount,Account payerAcct,long gaslimit,long gasprice)   |  转账
+    2 | long queryBalanceOf(String address)                                                       |  查询余额
+    3 | long queryAllowance(String fromAddr,String toAddr)                                         |  查询Allowance
+    4 | String sendApprove(Account sendAcct, String recvAddr, long amount,Account payerAcct,long gaslimit,long gasprice)    |  发送Approve
+    5 | String sendTransferFrom(Account sendAcct, String fromAddr, String toAddr,long amount,Account payerAcct,long gaslimit,long gasprice) |  发送TransferFrom
+    6 | String queryName()                                                                          |  查询资产名
+    7 | String querySymbol()                                                                        |  查询资产Symbol
+    8 | long queryDecimals()                                                                        |  查询精度
+    9 | long queryTotalSupply()                                                                     |  查询总供应量
+   10 | String claimOng(Account sendAcct, String toAddr, long amount, Account payerAcct, long gaslimit, long gasprice)             |  提取ong
    11 | String unclaimOng(String address)                                                                           |  查询未提取的ong
       
-      
-      |                                         other   Function                                                       |           Description            
- -----|----------------------------------------------------------------------------------------------------------------|---------------------------------------------
-    1 | String sendTransferToMany(String asset,String sendAddr, String pwd,String[] recvAddr,long[] amount,long gas)   |  转给多个地址
-    2 | String sendTransferFromMany(String asset,String[] sendAddr,String[] pwd,String recvAddr,long[] amount,long gas)|  多个地址转给一个地址
 ```   
 
 * Nep-5智能合约数字资产:
@@ -119,15 +134,16 @@
 ```  
       |                                         Main   Function                                       |           Description            
  -----|-----------------------------------------------------------------------------------------------|---------------------------------------------
-    1 | String sendInit(String payer,String password,long gas)                                        |  初始化
-    1 | String sendInitPreExec()                                                                      |  预执行初始化
-    2 | String sendTransfer(String sendAddr, String pwd, String recvAddr, int amount,long gas)        |  转账
-    3 |  String sendTransferPreExec(String sendAddr, String pwd, String recvAddr, int amount,long gas)|  预执行转账                              
-    4 | String queryBalanceOf(String addr)                                                            |  查询余额
-    5 | String queryTotalSupply()                                                                     |  查询总供应量 
-    6 | String queryName()                                                                            |  查询名字
-    7 | String queryDecimals()                                                                        |  查询精度
-    8 | String querySymbol()                                                                          |  查询资产Symbol
+    1 | void setContractAddress(String codeHash)                                                      | 设置合约地址
+    2 | String sendInit(Account acct, Account payerAcct,long gaslimit,long gasprice)                   |  初始化
+    3 | long sendInitGetGasLimit()                                                                     |  预执行初始化
+    4 | String sendTransfer(Account acct, String recvAddr, long amount,Account payerAcct, long gaslimit,long gasprice)        |  转账
+    5 | long sendTransferGetGasLimit(Account acct, String recvAddr, long amount)                      |  预执行转账                              
+    6 | String queryBalanceOf(String addr)                                                            |  查询余额
+    7 | String queryTotalSupply()                                                                     |  查询总供应量 
+    8 | String queryName()                                                                            |  查询名字
+    9 | String queryDecimals()                                                                        |  查询精度
+   10 | String querySymbol()                                                                          |  查询资产Symbol
 
 ```  
 
@@ -140,20 +156,22 @@
 ```
       |                                         Main   Function                                                     |           Description            
  -----|-------------------------------------------------------------------------------------------------------------|---------------------------------------------
-    1 | String getContractAddress()                                                                                 |  查询合约地址
-    2 | Identity sendRegister(Identity ident, String password,String payer,String payerpassword,long gas)           |  注册ontid
-    3 | Identity sendRegisterPreExec(Identity ident, String password,String payerpassword,String payer, long gas)   |  预执行注册ontid                              
-    4 | Identity sendRegisterWithAttrs(Identity ident,String pwd,Map attrsMap,String payer,String payerpwd,long gas)|  注册ontid并添加属性
-    5 | String sendAddPubKey(String ontid, String password, String newpubkey,String payer,String payerpwd,long gas) |  添加公钥    
-    6 | String sendGetPublicKeys(String ontid)                                                                      |  获取公钥
-    7 | String sendRemovePubKey(String ontid, String pwd, String removePubkey,String payer,String payerpwd,long gas)|  删除公钥
-    8 | String sendGetKeyState(String ontid,int index)                                                              |  获取某公钥状态
-    9 | String sendAddAttributes(String ontid, String pswd, Map attrsMap,String payer,String payerpassword,long gas)|  添加属性
-   10 | String sendGetAttributes(String ontid)                                                                      |  查询属性
-   11 | String sendRemoveAttribute(String ontid,String password,String path,String payer,String payerpwd,long gas)  |  删除属性
-   12 | String sendAddRecovery(String ontid, String pwd, String recovery,String payer,String payerpwd,long gas)     |  添加恢复人
-   13 | String sendChangeRecovery(String ontid, String newRecovery, String oldRecovery, String password,long gas)   |  修改恢复人
-   14 | String sendGetDDO(String ontid)                                                                             |  查询DDO  
+    1 | String getContractAddress()                                                                                                                             |  查询合约地址
+    2 | Identity sendRegister(Identity ident, String password,Account payerAcct,long gaslimit,long gasprice)                                         |  注册ontid
+    3 | Identity sendRegisterPreExec(Identity ident, String password,Account payerAcct,long gaslimit,long gasprice)                                  |  预执行注册ontid
+    4 | Identity sendRegisterWithAttrs(Identity ident, String password,Attribute[] attributes,Account payerAcct,long gaslimit,long gasprice)         |  注册ontid并添加属性
+    5 | String sendAddPubKey(String ontid, String password, String newpubkey,Account payerAcct,long gaslimit,long gasprice)                          |  添加公钥
+    6 | String sendAddPubKey(String ontid,String recoveryOntid, String password, String newpubkey,Account payerAcct,long gaslimit,long gasprice)      |  添加公钥
+    7 | String sendGetPublicKeys(String ontid)                                                                                                                  |  获取公钥
+    8 | String sendRemovePubKey(String ontid, String password, String removePubkey,Account payerAcct,long gaslimit,long gasprice)                    |  删除公钥
+    9 | String sendRemovePubKey(String ontid, String recoveryOntid,String password, String removePubkey,Account payerAcct,long gaslimit,long gasprice)|  删除公钥
+   10 | String sendGetKeyState(String ontid,int index)                                                                                                          |  获取某公钥状态
+   11 | String sendAddAttributes(String ontid, String password, Attribute[] attributes,Account payerAcct,long gaslimit,long gasprice)                |  添加属性
+   12 | String sendGetAttributes(String ontid)                                                                                                                  |  查询属性
+   13 | String sendRemoveAttribute(String ontid,String password,String path,Account payerAcct,long gaslimit,long gasprice)                           |  删除属性
+   14 | String sendAddRecovery(String ontid, String password, String recoveryOntid,Account payerAcct,long gaslimit,long gasprice)                     |  添加恢复人
+   15 | String sendChangeRecovery(String ontid, String newRecovery, String oldRecovery, String password,Account payerAcct, long gaslimit,long gasprice)                            |  修改恢复人
+   16 | String sendGetDDO(String ontid)                                                                                                                         |  查询DDO
    
 ```
 
@@ -162,35 +180,37 @@
  ```  
      |                                           Make Transaction  Function                                                |     Description            
  ----|---------------------------------------------------------------------------------------------------------------------|------------------------ 
-   1 | Transaction makeRegister(String ontid,String password,String payer,long gas)                                        |   构造注册交易
-   2 | Transaction makeRegisterWithAttrs(String ontid,String password,Map<String, Object> attrsMap,String payer,long gas)  |   构造注册ontid并添加属性交易
-   3 | Transaction makeAddPubKey(String ontid,String password,String newpubkey,String payer,long gas)                      |   构造添加公钥交易
-   4 | Transaction makeRemovePubKey(String ontid, String password, String removePubkey,String payer,long gas)              |   构造删除公钥交易
-   5 | Transaction makeAddAttributes(String ontid, String password, Map<String, Object> attrsMap,String payer,long gas)    |   构造添加属性交易
-   6 | Transaction makeRemoveAttribute(String ontid,String password,String path,String payer,long gas)                     |   构造删除属性交易
-   7 | Transaction makeAddRecovery(String ontid, String password, String recovery,String payer,long gas)                   |   构造添加恢复人交易
-   
+   1 | Transaction makeRegister(String ontid,String password,String payer,long gaslimit,long gasprice)                                              | 构造注册交易
+   2 | Transaction makeRegisterWithAttrs(String ontid, String password, Attribute[] attributes, String payer, long gaslimit, long gasprice)         | 构造注册ontid并添加属性交易
+   3 | Transaction makeAddPubKey(String ontid,String password,String newpubkey,String payer,long gaslimit,long gasprice)                            | 构造添加公钥交易
+   4 | Transaction makeAddPubKey(String ontid,String recoveryAddr,String password,String newpubkey,String payer,long gaslimit,long gasprice)        | 构造添加公钥交易
+   5 | Transaction makeRemovePubKey(String ontid, String password, String removePubkey,String payer,long gaslimit,long gasprice)                    | 构造删除公钥交易
+   6 | Transaction makeRemovePubKey(String ontid,String recoveryAddr, String password, String removePubkey,String payer,long gaslimit,long gasprice)| 构造删除公钥交易
+   7 | Transaction makeAddAttributes(String ontid, String password, Attribute[] attributes,String payer,long gaslimit,long gasprice)                | 构造添加属性交易
+   8 | Transaction makeRemoveAttribute(String ontid,String password,String path,String payer,long gaslimit,long gasprice)                           | 构造删除属性交易
+   9 | Transaction makeAddRecovery(String ontid, String password, String recoveryAddr,String payer,long gaslimit,long gasprice)                     | 构造添加恢复人交易
   ```
   
-* Cliam相关接口：
+* Claim相关接口：
   
  ```
      |                                           Claim Function                                                                      |     Description            
  ----|-------------------------------------------------------------------------------------------------------------------------------|------------------------
-   1 | boolean verifyMerkleProof(String claim)                                                                                       |   验证merkle证明                
-   2 | String createOntIdClaim(String signerOntid, String pwd, String context, Map claimMap, Map metaData,Map clmRevMap,long expire) |   创建claim
-   3 | boolean verifyOntIdClaim(String claim)                                                                                        |   验证claim
+   1 | public Object getMerkleProof(String txhash)                                                                                   |   获取merkle证明
+   2 | boolean verifyMerkleProof(String claim)                                                                                       |   验证merkle证明                
+   3 | String createOntIdClaim(String signerOntid, String pwd, String context, Map claimMap, Map metaData,Map clmRevMap,long expire) |   创建claim
+   4 | boolean verifyOntIdClaim(String claim)                                                                                        |   验证claim
   
  ```
  
 * Cliam存证接口：
   
  ```
-     |                                            Function                                           |     Description            
- ----|-----------------------------------------------------------------------------------------------|------------------------
-   1 | String sendCommit(String issuerOntid,String pwd,String subjectOntid,String claimId,long gas)  |   存储claim              
-   2 | String sendRevoke(String ontid,String password,String claimId,long gas)                       |   吊销
-   3 | String sendGetStatus(String ontid,String password,String claimId)                             |   获取状态
+     |                                            Function                                                         |     Description
+ ----|-------------------------------------------------------------------------------------------------------------|------------------------
+   1 | String sendCommit(String issuerOntid,String pwd,String subjectOntid,String claimId,Account payerAcct,long gaslimit,long gasprice)  |   存储claim
+   2 | String sendRevoke(String issuerOntid,String password,String claimId,Account payerAcct,long gaslimit,long gasprice)                 |   吊销
+   3 | String sendGetStatus(String claimId)                                                                                               |   获取状态
   
  ```
  
@@ -200,7 +220,33 @@
   ```
       |                                            Function                                                                                                                             |     Description            
   ----|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------
-    1 | DeployCode makeDeployCodeTransaction(String code, boolean needStorage, String name, String version, String author, String email, String desp, byte vmtype,String payer,long gas)|   部署              
-    2 | InvokeCode makeInvokeCodeTransaction(String codeAddr,String method,byte[] params, byte vmtype, String payer,long gas)                                                           |   调用
+    1 | DeployCode makeDeployCodeTransaction(String code, boolean needStorage, String name, String version, String author, String email, String desp, byte vmtype,String payer,long gaslimit,long gasprice)|   部署
+    2 | InvokeCode makeInvokeCodeTransaction(String codeAddr,String method,byte[] params, byte vmtype, String payer,long gaslimit,long gasprice)                                                           |   调用
    
   ```
+
+ ### Native合约调用
+
+ #### 权限管理合约
+
+* 权限管理功能接口：
+ ```
+       |                                            Function                                                                                                                               |     Description
+   ----|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------
+     1 | String sendTransfer(String adminOntId,String password,String contractAddr, String newAdminOntID,int key,Account payerAcct,long gaslimit,long gasprice)                 |   合约管理员转让合约管理权限
+     2 | String assignFuncsToRole(String adminOntID,String password,String contractAddr,String role,String[] funcName,int key,Account payerAcct, long gaslimit,long gasprice)    |   为角色分配函数
+     3 | String assignOntIDsToRole(String adminOntId,String password,String contractAddr,String role,String[] ontIDs, int key,Account payerAcct, long gaslimit,long gasprice)    |   绑定角色到实体身份
+     4 | String delegate(String ontid,String password,String contractAddr,String toOntId,String role,int period,int level,int key,Account payerAcct, long gaslimit,long gasprice)|   将合约调用权代理给其他人
+     5 | String withdraw(String initiatorOntid,String password,String contractAddr,String delegate, String role,int key,Account payerAcct, long gaslimit,long gasprice)          |   收回合约调用权
+ ```
+
+ * 构造交易接口：
+```
+       |                                            Function                                                                                                                               |     Description
+   ----|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------
+     1 | Transaction makeTransfer(String adminOntID,String contractAddr, String newAdminOntID,int key,String payer,long gaslimit,long gasprice)                    |   合约管理员转让合约管理权限
+     2 | Transaction makeAssignFuncsToRole(String adminOntID,String contractAddr,String role,String[] funcName,int key,String payer,long gaslimit,long gasprice)   |   为角色分配函数
+     3 | Transaction makeAssignOntIDsToRole(String adminOntId,String contractAddr,String role,String[] ontIDs, int key,String payer,long gaslimit,long gasprice)   |   绑定角色到实体身份
+     4 | Transaction makeDelegate(String ontid,String contractAddr,String toAddr,String role,int period,int level,int key,String payer,long gaslimit,long gasprice)|   将合约调用权代理给其他人
+     5 | Transaction makeWithDraw(String ontid,String contractAddr,String delegate, String role,int key,String payer,long gaslimit,long gasprice)                  |   收回合约调用权
+ ```

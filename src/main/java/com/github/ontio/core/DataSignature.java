@@ -33,42 +33,53 @@ import java.util.HashSet;
 
 public class DataSignature implements Signable {
     private Account account;
-    private String data;
+    private byte[] data;
     private SignatureScheme scheme;
-    public DataSignature(){
+
+    public DataSignature() {
     }
-    public DataSignature(String data){
+
+    public DataSignature(byte[] data) {
         this.data = data;
     }
-    public DataSignature(SignatureScheme scheme, Account acct,String  data){
+
+    public DataSignature(SignatureScheme scheme, Account acct, byte[] data) {
         this.scheme = scheme;
         this.account = acct;
         this.data = data;
     }
-    public String getData(){
+    public DataSignature(SignatureScheme scheme, Account acct, String data) {
+        this.scheme = scheme;
+        this.account = acct;
+        this.data = data.getBytes();
+    }
+
+    public byte[] getData() {
         return data;
     }
+
     public byte[] signature() {
         try {
-            byte[] signData = sign(account,scheme);
+            byte[] signData = sign(account, scheme);
             return signData;
         } catch (Exception e) {
             throw new RuntimeException(ErrorCode.DataSignatureErr);
         }
     }
+
     @Override
     public byte[] sign(Account account, SignatureScheme scheme) throws Exception {
-        return account.generateSignature(getHashData(), scheme,null);
+        return account.generateSignature(getHashData(), scheme, null);
     }
+
     @Override
     public boolean verifySignature(Account account, byte[] data, byte[] signature) throws Exception {
         return account.verifySignature(data, signature);
     }
+
     @Override
     public Address[] getAddressU160ForVerifying() {
-        HashSet<Address> hashes = new HashSet<Address>();
-        hashes.add(Address.addressFromPubKey(account.serializePublicKey()));
-        return hashes.stream().sorted().toArray(Address[]::new);
+        return null;
     }
 
     @Override
@@ -81,7 +92,7 @@ public class DataSignature implements Signable {
 
     @Override
     public void serializeUnsigned(BinaryWriter writer) throws IOException {
-        writer.write(data.getBytes());
+        writer.write(data);
     }
 
     @Override

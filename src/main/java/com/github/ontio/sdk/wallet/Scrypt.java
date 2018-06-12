@@ -23,42 +23,64 @@ import com.alibaba.fastjson.JSON;
 
 /**
  */
-public class Scrypt {
+public class Scrypt implements Cloneable{
     private int n = 16384;
     private int r = 8;
     private int p = 8;
     private int DkLen = 64;
     private String Salt;
-    public Scrypt(){
+
+    public int getDkLen() {
+        return DkLen;
     }
-    public Scrypt(int n,int r,int p){
+
+    public void setDkLen(int dkLen) {
+        DkLen = dkLen;
+    }
+
+
+    public Scrypt() {
+    }
+
+    public Scrypt(int n, int r, int p) {
         this.n = n;
         this.r = r;
         this.p = p;
     }
-    public void setN(int n){
-        this.n = n;
-    }
-    public int getN(){
+
+    public int getN() {
         return n;
     }
-    public void setR(int r){
-        this.r = r;
+
+    public void setN(int n) {
+        this.n = n;
     }
-    public int getR(){
+
+    public int getR() {
         return r;
     }
-    public void setP(int p){
-        this.p = p;
+
+    public void setR(int r) {
+        this.r = r;
     }
-    public int getP(){
+
+    public int getP() {
         return p;
     }
-    public void setDkLen(int DkLen){
-        this.DkLen = DkLen;
+
+    public void setP(int p) {
+        this.p = p;
     }
-    public int getDkLen(){
-        return DkLen;
+
+    @Override
+    public Scrypt clone() {
+        Scrypt o = null;
+        try {
+            o = (Scrypt) super.clone();
+        } catch (CloneNotSupportedException e) {
+            e.printStackTrace();
+        }
+        return o;
     }
     @Override
     public String toString() {

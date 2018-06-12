@@ -38,9 +38,9 @@ public class Account {
     public String key = "";
     @JSONField(name = "enc-alg")
     public String encAlg = "aes-256-ctr";
+    public String salt = "";
     public String hash = "sha256";
     public String signatureScheme = "SHA256withECDSA";
-    public String passwordHash = "";
     public Object extra = null;
     public Account(){
 
@@ -53,39 +53,50 @@ public class Account {
         this.hash = hash;
         this.extra = null;
     }
-    public void setKey(String key){
-        this.key = key;
+
+    public Object getExtra(){
+        return extra;
     }
-    public String getKey(){
+
+    public void setExtra(Object extra){
+        this.extra = extra;
+    }
+
+    public String getKey() {
         return key;
     }
-//    public void setEncAlg(String encAlg){
-//        this.encAlg = encAlg;
-//    }
-//    public String getEncAlg(){
-//        return encAlg;
-//    }
-    public void setHash(String hash){
-        this.hash = hash;
+
+    public void setKey(String key) {
+        this.key = key;
+    }
+
+    public String getEncAlg(){
+        return encAlg;
+    }
+    public void setEncAlg(String encAlg){
+        this.encAlg = encAlg;
     }
     public String getHash(){
         return hash;
     }
-    public void setPasswordHash(String passwordHash){
-        this.passwordHash = passwordHash;
+
+    public void setHash(String hash) {
+        this.hash = hash;
     }
-    public Object getPasswordHash(){
-        return passwordHash;
+
+    public String getSalt() {
+        return salt;
     }
-    public void setExtra(Object extra){
-        this.extra = extra;
+
+    public void setSalt(String salt) {
+        this.salt = salt;
     }
-    public Object getExtra(){
-        return extra;
-    }
+
     @Override
     public String toString() {
         return JSON.toJSONString(this);
     }
+
+
 }
 
