@@ -28,4 +28,21 @@ public class Base {
 
         return wm;
     }
+
+    public static OntSdk getTestNet() throws Exception {
+        String ip = "http://polaris1.ont.io";
+        String restUrl = ip + ":" + "20384";
+        String rpcUrl = ip + ":" + "20386";
+        String wsUrl = ip + ":" + "20385";
+
+        OntSdk wm = OntSdk.getInstance();
+        wm.setRpc(rpcUrl);
+        wm.setRestful(restUrl);
+        wm.setWesocket(wsUrl, lock);
+        wm.setDefaultConnect(wm.getRestful());
+
+        wm.openWalletFile("MyWalletDemo.json");
+
+        return wm;
+    }
 }
