@@ -10,19 +10,19 @@ public class RecordTxDemo {
         try {
             OntSdk ontSdk = getOntSdk();
 
-            if(ontSdk.getWalletMgr().getIdentitys().size() < 1) {
+            if(ontSdk.getWalletMgr().getWallet().getIdentities().size() < 1) {
 
                 ontSdk.getWalletMgr().createIdentity("passwordtest");
                 ontSdk.getWalletMgr().writeWallet();
             }
 
 
-            Identity id = ontSdk.getWalletMgr().getIdentitys().get(0);
+            Identity id = ontSdk.getWalletMgr().getWallet().getIdentities().get(0);
 
-            String hash = ontSdk.neovm().record().sendPut(id.ontid,"passwordtest","key","value-test",0,0);
+            String hash = ontSdk.neovm().record().sendPut(id.ontid,"passwordtest",new byte[]{},"key","value-test",0,0);
             System.out.println(hash);
             Thread.sleep(6000);
-            String res = ontSdk.neovm().record().sendGet(id.ontid,"passwordtest","key");
+            String res = ontSdk.neovm().record().sendGet(id.ontid,"passwordtest",new byte[]{},"key");
             System.out.println("result:"+res);
 
             //System.out.println(ontSdk.getConnectMgr().getSmartCodeEvent(hash));
@@ -40,8 +40,8 @@ public class RecordTxDemo {
 //        String ip = "http://54.222.182.88;
 //        String ip = "http://101.132.193.149";
         String restUrl = ip + ":" + "20334";
-        String rpcUrl = ip + ":" + "20386";
-        String wsUrl = ip + ":" + "20385";
+        String rpcUrl = ip + ":" + "20336";
+        String wsUrl = ip + ":" + "20335";
 
         OntSdk wm = OntSdk.getInstance();
         wm.setRpc(rpcUrl);

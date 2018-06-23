@@ -25,11 +25,11 @@ import com.github.ontio.OntSdk;
 import com.github.ontio.account.Account;
 import com.github.ontio.common.Address;
 import com.github.ontio.common.ErrorCode;
-import com.github.ontio.core.VmType;
 import com.github.ontio.core.transaction.Transaction;
-import com.github.ontio.sdk.abi.AbiFunction;
-import com.github.ontio.sdk.abi.AbiInfo;
+import com.github.ontio.smartcontract.neovm.abi.AbiFunction;
+import com.github.ontio.smartcontract.neovm.abi.AbiInfo;
 import com.github.ontio.sdk.exception.SDKException;
+import com.github.ontio.smartcontract.neovm.abi.BuildParams;
 
 
 /**
@@ -65,8 +65,8 @@ public class Nep5 {
         return (String)sendInit(acct,payerAcct,gaslimit,gasprice,false);
     }
 
-    public long sendInitGetGasLimit() throws Exception {
-        return (long)sendInit(null,null,0,0,true);
+    public long sendInitPreExec(Account acct, Account payerAcct,long gaslimit,long gasprice) throws Exception {
+        return (long)sendInit(acct,payerAcct,gaslimit,gasprice,true);
     }
 
     private Object sendInit(Account acct, Account payerAcct,long gaslimit,long gasprice,boolean preExec) throws Exception {
@@ -78,10 +78,13 @@ public class Nep5 {
         func.name = "init";
         if(preExec) {
             byte[] params = BuildParams.serializeAbiFunction(func);
-            Transaction tx = sdk.vm().makeInvokeCodeTransaction(getContractAddress(), null, params, VmType.NEOVM.value(), null,0, 0);
+            Transaction tx = sdk.vm().makeInvokeCodeTransaction(getContractAddress(), null, params,null,0, 0);
+            if (acct != null) {
+                sdk.signTx(tx, new Account[][]{{acct}});
+            }
             Object obj = sdk.getConnect().sendRawTransactionPreExec(tx.toHexString());
             if (Integer.parseInt(((JSONObject) obj).getString("Result")) != 1){
-                throw new SDKException(ErrorCode.OtherError("sendRawTransaction PreExec error"));
+                throw new SDKException(ErrorCode.OtherError("sendRawTransaction PreExec error: "+ obj));
             }
             return ((JSONObject) obj).getLong("Gas");
         }
@@ -108,7 +111,7 @@ public class Nep5 {
         return (String)sendTransfer(acct, recvAddr, amount,payerAcct,gaslimit,gasprice, false);
     }
 
-    public long sendTransferGetGasLimit(Account acct, String recvAddr, long amount) throws Exception {
+    public long sendTransferPreExec(Account acct, String recvAddr, long amount) throws Exception {
         return (long)sendTransfer(acct, recvAddr, amount,acct,0,0, true);
     }
 
@@ -127,16 +130,26 @@ public class Nep5 {
         if(preExec) {
             byte[] params = BuildParams.serializeAbiFunction(func);
 
-            Transaction tx = sdk.vm().makeInvokeCodeTransaction(getContractAddress(), null, params, VmType.NEOVM.value(), null,0, 0);
+            Transaction tx = sdk.vm().makeInvokeCodeTransaction(getContractAddress(), null, params,null,0, 0);
             sdk.signTx(tx, new Account[][]{{acct}});
             Object obj = sdk.getConnect().sendRawTransactionPreExec(tx.toHexString());
             if (Integer.parseInt(((JSONObject) obj).getString("Result")) != 1){
-                throw new SDKException(ErrorCode.OtherError("sendRawTransaction PreExec error"));
+                throw new SDKException(ErrorCode.OtherError("sendRawTransaction PreExec error: "+ obj));
             }
             return ((JSONObject) obj).getLong("Gas");
         }
         Object obj = sdk.neovm().sendTransaction(contractAddress,acct,payerAcct,gaslimit,gasprice,func, preExec);
         return obj;
+    }
+    public Transaction makeTransfer(String sendAddr,String recvAddr, long amount, Account payerAcct, long gaslimit, long gasprice) throws Exception{
+        AbiInfo abiinfo = JSON.parseObject(nep5abi, AbiInfo.class);
+        AbiFunction func = abiinfo.getFunction("Transfer");
+        func.name = "transfer";
+        func.setParamsValue(Address.decodeBase58(sendAddr).toArray(), Address.decodeBase58(recvAddr).toArray(), amount);
+        byte[] params = BuildParams.serializeAbiFunction(func);
+        String payer = payerAcct.getAddressU160().toBase58();
+        Transaction tx = sdk.vm().makeInvokeCodeTransaction(getContractAddress(), null, params, payer,gaslimit, gasprice);
+        return tx;
     }
 
     public String queryBalanceOf(String addr) throws Exception {

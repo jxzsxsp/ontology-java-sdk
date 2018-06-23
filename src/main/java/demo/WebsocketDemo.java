@@ -22,13 +22,11 @@ package demo;
 import com.github.ontio.OntSdk;
 import com.github.ontio.common.Address;
 import com.github.ontio.common.Helper;
-import com.github.ontio.core.VmType;
 import com.github.ontio.core.block.Block;
 import com.github.ontio.core.transaction.Transaction;
 import com.github.ontio.io.Serializable;
-import com.github.ontio.network.websocket.WebsocketClient;
-import com.github.ontio.sdk.abi.AbiFunction;
-import com.github.ontio.sdk.abi.AbiInfo;
+import com.github.ontio.smartcontract.neovm.abi.AbiFunction;
+import com.github.ontio.smartcontract.neovm.abi.AbiInfo;
 import com.github.ontio.sdk.wallet.Account;
 import com.github.ontio.sdk.wallet.Identity;
 import com.github.ontio.sdk.wallet.Wallet;
@@ -94,16 +92,16 @@ public class WebsocketDemo {
                     Account info1 = null;
                     Account info2 = null;
                     Account info3 = null;
-                    if (ontSdk.getWalletMgr().getAccounts().size() < 3) {
+                    if (ontSdk.getWalletMgr().getWallet().getAccounts().size() < 3) {
                         info1 = ontSdk.getWalletMgr().createAccountFromPriKey("passwordtest", "9a31d585431ce0aa0aab1f0a432142e98a92afccb7bcbcaff53f758df82acdb3");
                         info2 = ontSdk.getWalletMgr().createAccount("passwordtest");
                         info3 = ontSdk.getWalletMgr().createAccount("passwordtest");
                         ontSdk.getWalletMgr().writeWallet();
                     }
-                    info1 = ontSdk.getWalletMgr().getAccounts().get(0);
-                    info2 = ontSdk.getWalletMgr().getAccounts().get(1);
+                    info1 = ontSdk.getWalletMgr().getWallet().getAccounts().get(0);
+                    info2 = ontSdk.getWalletMgr().getWallet().getAccounts().get(1);
                     Transaction tx = ontSdk.nativevm().ont().makeTransfer( info1.address, info2.address, 100L,payer.address, ontSdk.DEFAULT_GAS_LIMIT,0);
-                    ontSdk.signTx(tx, info1.address, password);
+                    ontSdk.signTx(tx, info1.address, password,new byte[]{});
                     System.out.println(tx.toHexString());
                     ontSdk.getConnect().sendRawTransaction(tx.toHexString());
                 }
@@ -135,7 +133,7 @@ public class WebsocketDemo {
                     //System.out.println("Functions:" + abiinfo.getFunctions());
 
                     AbiFunction func0 = abiinfo.getFunction("Put");
-                    Identity did0 = ontSdk.getWalletMgr().getIdentitys().get(0);
+                    Identity did0 = ontSdk.getWalletMgr().getWallet().getIdentities().get(0);
                     func0.setParamsValue("key".getBytes(), "value".getBytes());
                 }
                 if(true){
@@ -188,8 +186,8 @@ public class WebsocketDemo {
         String ip = "http://127.0.0.1";
 //        String ip = "http://139.219.129.55";
 //        String ip = "http://101.132.193.149";
-        String restUrl = ip + ":" + "20384";
-        String rpcUrl = ip + ":" + "20386";
+        String restUrl = ip + ":" + "20334";
+        String rpcUrl = ip + ":" + "20336";
         String wsUrl = ip + ":" + "20335";
 
         OntSdk wm = OntSdk.getInstance();

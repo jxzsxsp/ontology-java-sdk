@@ -11,15 +11,15 @@
 
 ```
 String ip = "http://127.0.0.1";
-String restUrl = ip + ":" + "20384";
-String rpcUrl = ip + ":" + "20386";
-String wsUrl = ip + ":" + "20385";
+String restUrl = ip + ":" + "20334";
+String rpcUrl = ip + ":" + "20336";
+String wsUrl = ip + ":" + "20335";
 OntSdk wm = OntSdk.getInstance();
 wm.setRpc(rpcUrl);
 wm.setRestful(restUrl);
 wm.setDefaultConnect(wm.getRestful());
 wm.openWalletFile("RecordTxDemo.json");
-wm.setCodeAddress("803ca638069742da4b6871fe3d7f78718eeee78a");
+
 ```
 
 > Note: codeAddress is the address of the record contract。
@@ -27,7 +27,7 @@ wm.setCodeAddress("803ca638069742da4b6871fe3d7f78718eeee78a");
 
 The specification of the following interface document is https://github.com/kunxian-xia/ontology-DID/blob/master/docs/en/claim_spec.md。
 
-* 2. String sendCommit(String issuerOntid, String password, String subjectOntid, String claimId, Account payerAcct, long gaslimit, long gasprice)
+* 2. String sendCommit(String issuerOntid, String password,byte[] salt, String subjectOntid, String claimId, Account payerAcct, long gaslimit, long gasprice)
 
         function description： Save data to the chain
 
@@ -74,7 +74,7 @@ String getstatusRes2 = ontSdk.neovm().claimRecord().sendGetStatus(payload.getStr
 ```
 
 
-* 4. String sendRevoke(String issuerOntid,String password,String claimId,Account payerAcct,long gaslimit,long gas)
+* 4. String sendRevoke(String issuerOntid,String password,byte[] salt,String claimId,Account payerAcct,long gaslimit,long gas)
 
         function description：Repeal of a trust claim
 

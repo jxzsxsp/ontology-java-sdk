@@ -25,31 +25,35 @@ import com.github.ontio.OntSdk;
 import com.github.ontio.account.Account;
 import com.github.ontio.common.*;
 import com.github.ontio.core.VmType;
+import com.github.ontio.core.governance.PeerPoolItem;
+import com.github.ontio.core.governance.VoteInfo;
 import com.github.ontio.core.transaction.Transaction;
 import com.github.ontio.io.BinaryReader;
 import com.github.ontio.io.BinaryWriter;
 import com.github.ontio.io.Serializable;
 import com.github.ontio.network.exception.ConnectorException;
 import com.github.ontio.sdk.exception.SDKException;
+import com.github.ontio.smartcontract.nativevm.abi.NativeBuildParams;
+import com.github.ontio.smartcontract.nativevm.abi.Struct;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * @Description:
- * @date 2018/5/24
- */
 public class Governance {
     private OntSdk sdk;
-    private final String contractAddress = "ff00000000000000000000000000000000000007";
+    private final String contractAddress = "0000000000000000000000000000000000000007";
+    private final String VOTE_INFO_POOL = "voteInfoPool";
     public Governance(OntSdk sdk) {
         this.sdk = sdk;
     }
-
+    public String getContractAddress() {
+        return contractAddress;
+    }
     /**
      *
      * @param account
@@ -64,11 +68,33 @@ public class Governance {
      * @return
      * @throws Exception
      */
-    public String registerCandidate(Account account, String peerPubkey, int initPos, String ontid,String ontidpwd, long keyNo, Account payerAcct, long gaslimit, long gasprice) throws Exception{
-        byte[] params = new RegisterCandidateParam(peerPubkey,account.getAddressU160(),initPos,ontid.getBytes(),keyNo).toArray();
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"registerCandidate",params, VmType.Native.value(),payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+    public String registerCandidate(Account account, String peerPubkey, int initPos, String ontid,String ontidpwd,byte[] salt,  long keyNo, Account payerAcct, long gaslimit, long gasprice) throws Exception{
+//        byte[] params = new RegisterCandidateParam(peerPubkey,account.getAddressU160(),initPos,ontid.getBytes(),keyNo).toArray();
+//        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"registerCandidate",params,payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+
+        List list = new ArrayList();
+        list.add(new Struct().add(peerPubkey,account.getAddressU160(),initPos,ontid.getBytes(),keyNo));
+        byte[] args = NativeBuildParams.createCodeParamsScript(list);
+        Transaction tx = sdk.vm().buildNativeParams(new Address(Helper.hexToBytes(contractAddress)),"registerCandidate",args,payerAcct.getAddressU160().toBase58(),gaslimit, gasprice);
         sdk.signTx(tx,new Account[][]{{account}});
-        sdk.addSign(tx,ontid,ontidpwd);
+        sdk.addSign(tx,ontid,ontidpwd,salt);
+        if(!account.equals(payerAcct)){
+            sdk.addSign(tx,payerAcct);
+        }
+        boolean b = sdk.getConnect().sendRawTransaction(tx.toHexString());
+        if (b) {
+            return tx.hash().toString();
+        }
+        return null;
+    }
+
+    public String unRegisterCandidate(Account account, String peerPubkey,Account payerAcct, long gaslimit, long gasprice) throws Exception{
+
+        List list = new ArrayList();
+        list.add(new Struct().add(peerPubkey,account.getAddressU160()));
+        byte[] args = NativeBuildParams.createCodeParamsScript(list);
+        Transaction tx = sdk.vm().buildNativeParams(new Address(Helper.hexToBytes(contractAddress)),"unRegisterCandidate",args,payerAcct.getAddressU160().toBase58(),gaslimit, gasprice);
+        sdk.signTx(tx,new Account[][]{{account}});
         if(!account.equals(payerAcct)){
             sdk.addSign(tx,payerAcct);
         }
@@ -81,12 +107,32 @@ public class Governance {
 
     /**
      *
+     * @param peerPubkey
      * @return
      * @throws ConnectorException
      * @throws IOException
      */
-    public String getPeerPoolMap() throws ConnectorException, IOException {
-        String view = sdk.getConnect().getStorage(contractAddress,Helper.toHexString("governanceView".getBytes()));
+    public String getPeerInfo(String peerPubkey) throws ConnectorException, IOException {
+        return getPeerPoolMap(peerPubkey);
+    }
+
+    /**
+     * 
+     * @return
+     * @throws ConnectorException
+     * @throws IOException
+     */
+    public String getPeerInfoAll() throws ConnectorException, IOException {
+        return getPeerPoolMap(null);
+    }
+    /**
+     *
+     * @return
+     * @throws ConnectorException
+     * @throws IOException
+     */
+    private String getPeerPoolMap(String peerPubkey) throws ConnectorException, IOException {
+        String view = sdk.getConnect().getStorage(Helper.reverse(contractAddress),Helper.toHexString("governanceView".getBytes()));
         GovernanceView governanceView = new GovernanceView();
         ByteArrayInputStream bais = new ByteArrayInputStream(Helper.hexToBytes(view));
         BinaryReader br = new BinaryReader(bais);
@@ -101,7 +147,7 @@ public class Governance {
         byte[] keyBytes = new byte[peerPoolBytes.length + viewBytes.length];
         System.arraycopy(peerPoolBytes,0,keyBytes,0,peerPoolBytes.length);
         System.arraycopy(viewBytes,0,keyBytes,peerPoolBytes.length,viewBytes.length);
-        String value = sdk.getConnect().getStorage(contractAddress,Helper.toHexString(keyBytes));
+        String value = sdk.getConnect().getStorage(Helper.reverse(contractAddress),Helper.toHexString(keyBytes));
         ByteArrayInputStream bais2 = new ByteArrayInputStream(Helper.hexToBytes(value));
         BinaryReader reader = new BinaryReader(bais2);
         int length = reader.readInt();
@@ -111,13 +157,50 @@ public class Governance {
             item.deserialize(reader);
             peerPoolMap.put(item.peerPubkey,item.Json());
         }
+        if(peerPubkey != null) {
+            if(!peerPoolMap.containsKey(peerPubkey)) {
+                return null;
+            }
+            return JSON.toJSONString(peerPoolMap.get(peerPubkey));
+        }
         return JSON.toJSONString(peerPoolMap);
     }
 
     /**
      *
-     * @param adminOntId
-     * @param password
+     * @param peerPubkey
+     * @param addr
+     * @return
+     */
+    public VoteInfo getVoteInfo(String peerPubkey,Address addr) {
+        byte[] peerPubkeyPrefix = Helper.hexToBytes(peerPubkey);
+        byte[] address = addr.toArray();
+        byte[] voteInfoPool = VOTE_INFO_POOL.getBytes();
+        byte[] key = new byte[voteInfoPool.length + peerPubkeyPrefix.length + address.length];
+        System.arraycopy(voteInfoPool,0,key,0,voteInfoPool.length);
+        System.arraycopy(peerPubkeyPrefix,0,key,voteInfoPool.length,peerPubkeyPrefix.length);
+        System.arraycopy(address,0,key,voteInfoPool.length + peerPubkeyPrefix.length,address.length);
+        String res = null;
+        try {
+            res = sdk.getConnect().getStorage(Helper.reverse(contractAddress),Helper.toHexString(key));
+            if(!res.equals("")){
+                return Serializable.from(Helper.hexToBytes(res), VoteInfo.class);
+            }
+        } catch (ConnectorException e) {
+            return null;
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    /**
+     *
      * @param peerPubkey
      * @param payerAcct
      * @param gaslimit
@@ -125,11 +208,18 @@ public class Governance {
      * @return
      * @throws Exception
      */
-    public String approveCandidate(String adminOntId,String password,String peerPubkey,Account payerAcct,long gaslimit,long gasprice) throws Exception{
-        byte[] params = new ApproveCandidateParam(peerPubkey).toArray();
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"approveCandidate",params, VmType.Native.value(),payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
-        sdk.signTx(tx,adminOntId,password);
-        sdk.addSign(tx,payerAcct);
+    public String approveCandidate(Account adminAccount, String peerPubkey,Account payerAcct,long gaslimit,long gasprice) throws Exception{
+//        byte[] params = new ApproveCandidateParam(peerPubkey).toArray();
+//        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"approveCandidate",params,payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+
+        List list = new ArrayList();
+        list.add(new Struct().add(peerPubkey));
+        byte[] args = NativeBuildParams.createCodeParamsScript(list);
+        Transaction tx = sdk.vm().buildNativeParams(new Address(Helper.hexToBytes(contractAddress)),"approveCandidate",args,payerAcct.getAddressU160().toBase58(),gaslimit, gasprice);
+        sdk.signTx(tx,new Account[][]{{adminAccount}});
+        if(!adminAccount.equals(payerAcct)) {
+            sdk.addSign(tx,payerAcct);
+        }
         boolean b = sdk.getConnect().sendRawTransaction(tx.toHexString());
         if (b) {
             return tx.hash().toString();
@@ -146,10 +236,18 @@ public class Governance {
      * @return
      * @throws Exception
      */
-    public String rejectCandidate(String peerPubkey,Account payerAcct,long gaslimit,long gasprice) throws Exception{
-        byte[] params = new RejectCandidateParam(peerPubkey).toArray();
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"rejectCandidate",params, VmType.Native.value(),payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
-        sdk.signTx(tx,new Account[][]{{payerAcct}});
+    public String rejectCandidate(Account adminAccount,String peerPubkey,Account payerAcct,long gaslimit,long gasprice) throws Exception{
+//        byte[] params = new RejectCandidateParam(peerPubkey).toArray();
+//        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"rejectCandidate",params, payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+
+        List list = new ArrayList();
+        list.add(new Struct().add(peerPubkey));
+        byte[] args = NativeBuildParams.createCodeParamsScript(list);
+        Transaction tx = sdk.vm().buildNativeParams(new Address(Helper.hexToBytes(contractAddress)),"rejectCandidate",args,payerAcct.getAddressU160().toBase58(),gaslimit, gasprice);
+        sdk.signTx(tx,new Account[][]{{adminAccount}});
+        if (!adminAccount.equals(payerAcct)){
+            sdk.addSign(tx,payerAcct);
+        }
         boolean b = sdk.getConnect().sendRawTransaction(tx.toHexString());
         if (b) {
             return tx.hash().toString();
@@ -176,8 +274,23 @@ public class Governance {
         for(int i =0;i < peerPubkey.length;i++){
             map.put(peerPubkey[i],posList[i]);
         }
-        byte[] params = new VoteForPeerParam(account.getAddressU160(),peerPubkey,posList).toArray();
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"voteForPeer",params, VmType.Native.value(),payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+//        byte[] params = new VoteForPeerParam(account.getAddressU160(),peerPubkey,posList).toArray();
+//        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"voteForPeer",params,payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+
+        List list = new ArrayList();
+        Struct struct = new Struct();
+        struct.add(account.getAddressU160());
+        struct.add(peerPubkey.length);
+        for(int i =0; i< peerPubkey.length;i++){
+            struct.add(peerPubkey[i]);
+        }
+        struct.add(posList.length);
+        for(int i =0; i< peerPubkey.length;i++){
+            struct.add(posList[i]);
+        }
+        list.add(struct);
+        byte[] args = NativeBuildParams.createCodeParamsScript(list);
+        Transaction tx = sdk.vm().buildNativeParams(new Address(Helper.hexToBytes(contractAddress)),"voteForPeer",args,payerAcct.getAddressU160().toBase58(),gaslimit, gasprice);
         sdk.signTx(tx,new Account[][]{{account}});
         if(!account.equals(payerAcct)){
             sdk.addSign(tx,payerAcct);
@@ -208,8 +321,23 @@ public class Governance {
         for(int i =0;i < peerPubkey.length;i++){
             map.put(peerPubkey[i],posList[i]);
         }
-        byte[] params = new VoteForPeerParam(account.getAddressU160(),peerPubkey,posList).toArray();
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"unVoteForPeer",params, VmType.Native.value(),payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+//        byte[] params = new VoteForPeerParam(account.getAddressU160(),peerPubkey,posList).toArray();
+//        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"unVoteForPeer",params,payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+
+        List list = new ArrayList();
+        Struct struct = new Struct();
+        struct.add(account.getAddressU160());
+        struct.add(peerPubkey.length);
+        for(int i =0; i< peerPubkey.length;i++){
+            struct.add(peerPubkey[i]);
+        }
+        struct.add(posList.length);
+        for(int i =0; i< peerPubkey.length;i++){
+            struct.add(posList[i]);
+        }
+        list.add(struct);
+        byte[] args = NativeBuildParams.createCodeParamsScript(list);
+        Transaction tx = sdk.vm().buildNativeParams(new Address(Helper.hexToBytes(contractAddress)),"unVoteForPeer",args,payerAcct.getAddressU160().toBase58(),gaslimit, gasprice);
         sdk.signTx(tx,new Account[][]{{account}});
         if(!account.equals(payerAcct)){
             sdk.addSign(tx,payerAcct);
@@ -240,8 +368,23 @@ public class Governance {
         for(int i =0;i < peerPubkey.length;i++){
             map.put(peerPubkey[i],withdrawList[i]);
         }
-        byte[] params = new WithdrawParam(account.getAddressU160(),peerPubkey,withdrawList).toArray();
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"withdraw",params, VmType.Native.value(),payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+//        byte[] params = new WithdrawParam(account.getAddressU160(),peerPubkey,withdrawList).toArray();
+//        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"withdraw",params,payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+
+        List list = new ArrayList();
+        Struct struct = new Struct();
+        struct.add(account.getAddressU160());
+        struct.add(peerPubkey.length);
+        for(int i =0; i< peerPubkey.length;i++){
+            struct.add(peerPubkey[i]);
+        }
+        struct.add(withdrawList.length);
+        for(int i =0; i< peerPubkey.length;i++){
+            struct.add(withdrawList[i]);
+        }
+        list.add(struct);
+        byte[] args = NativeBuildParams.createCodeParamsScript(list);
+        Transaction tx = sdk.vm().buildNativeParams(new Address(Helper.hexToBytes(contractAddress)),"withdraw",args,payerAcct.getAddressU160().toBase58(),gaslimit, gasprice);
         sdk.signTx(tx,new Account[][]{{account}});
         if(!account.equals(payerAcct)){
             sdk.addSign(tx,payerAcct);
@@ -255,17 +398,18 @@ public class Governance {
 
     /**
      *
-     * @param adminOntId
-     * @param password
+     * @param adminAccount
      * @param payerAcct
      * @param gaslimit
      * @param gasprice
      * @return
      * @throws Exception
      */
-    public String commitDpos(String adminOntId,String password,Account payerAcct,long gaslimit,long gasprice) throws Exception{
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"commitDpos",new byte[]{}, VmType.Native.value(),payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
-        sdk.signTx(tx,adminOntId,password);
+    public String commitDpos(Account adminAccount, Account payerAcct,long gaslimit,long gasprice) throws Exception{
+//        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"commitDpos",new byte[]{},payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+
+        Transaction tx = sdk.vm().buildNativeParams(new Address(Helper.hexToBytes(contractAddress)),"commitDpos",new byte[]{0},payerAcct.getAddressU160().toBase58(),gaslimit, gasprice);
+        sdk.signTx(tx,new Account[][]{{adminAccount}});
         sdk.addSign(tx,payerAcct);
         boolean b = sdk.getConnect().sendRawTransaction(tx.toHexString());
         if (b) {
@@ -284,8 +428,13 @@ public class Governance {
      * @throws Exception
      */
     public String blackNode(String peerPubkey,Account payerAcct,long gaslimit,long gasprice) throws Exception{
-        byte[] params = new BlackNodeParam(peerPubkey).toArray();
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"blackNode",params, VmType.Native.value(),payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+//        byte[] params = new BlackNodeParam(peerPubkey).toArray();
+//        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"blackNode",params,payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+
+        List list = new ArrayList();
+        list.add(new Struct().add(peerPubkey));
+        byte[] args = NativeBuildParams.createCodeParamsScript(list);
+        Transaction tx = sdk.vm().buildNativeParams(new Address(Helper.hexToBytes(contractAddress)),"blackNode",args,payerAcct.getAddressU160().toBase58(),gaslimit, gasprice);
         sdk.signTx(tx,new Account[][]{{payerAcct}});
         boolean b = sdk.getConnect().sendRawTransaction(tx.toHexString());
         if (b) {
@@ -304,8 +453,13 @@ public class Governance {
      * @throws Exception
      */
     public String whiteNode(String peerPubkey,Account payerAcct,long gaslimit,long gasprice) throws Exception{
-        byte[] params = new WhiteNodeParam(peerPubkey).toArray();
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"whiteNode",params, VmType.Native.value(),payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+//        byte[] params = new WhiteNodeParam(peerPubkey).toArray();
+//        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"whiteNode",params,payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+
+        List list = new ArrayList();
+        list.add(new Struct().add(peerPubkey));
+        byte[] args = NativeBuildParams.createCodeParamsScript(list);
+        Transaction tx = sdk.vm().buildNativeParams(new Address(Helper.hexToBytes(contractAddress)),"whiteNode",args,payerAcct.getAddressU160().toBase58(),gaslimit, gasprice);
         sdk.signTx(tx,new Account[][]{{payerAcct}});
         boolean b = sdk.getConnect().sendRawTransaction(tx.toHexString());
         if (b) {
@@ -325,8 +479,13 @@ public class Governance {
      * @throws Exception
      */
     public String quitNode(Account account,String peerPubkey,Account payerAcct,long gaslimit,long gasprice) throws Exception{
-        byte[] params = new QuitNodeParam(peerPubkey,account.getAddressU160()).toArray();
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"quitNode",params, VmType.Native.value(),payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+//        byte[] params = new QuitNodeParam(peerPubkey,account.getAddressU160()).toArray();
+//        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"quitNode",params,payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+
+        List list = new ArrayList();
+        list.add(new Struct().add(peerPubkey,account.getAddressU160()));
+        byte[] args = NativeBuildParams.createCodeParamsScript(list);
+        Transaction tx = sdk.vm().buildNativeParams(new Address(Helper.hexToBytes(contractAddress)),"quitNode",args,payerAcct.getAddressU160().toBase58(),gaslimit, gasprice);
         sdk.signTx(tx,new Account[][]{{account}});
         if(!account.equals(payerAcct)){
             sdk.addSign(tx,payerAcct);
@@ -349,8 +508,12 @@ public class Governance {
      * @throws Exception
      */
     public String updateConfig(Configuration config,Account payerAcct,long gaslimit,long gasprice) throws Exception{
-        byte[] params = config.toArray();
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"updateConfig",params, VmType.Native.value(),payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+//        byte[] params = config.toArray();
+//        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"updateConfig",params,payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+        List list = new ArrayList();
+        list.add(new Struct().add(config.toArray()));
+        byte[] args = NativeBuildParams.createCodeParamsScript(list);
+        Transaction tx = sdk.vm().buildNativeParams(new Address(Helper.hexToBytes(contractAddress)),"updateConfig",args,payerAcct.getAddressU160().toBase58(),gaslimit, gasprice);
         sdk.signTx(tx,new Account[][]{{payerAcct}});
         boolean b = sdk.getConnect().sendRawTransaction(tx.toHexString());
         if (b) {
@@ -374,8 +537,13 @@ public class Governance {
      * @throws Exception
      */
     public String updateGlobalParam(long candidateFee,long minInitStake,long candidateNum,long A,long B,long Yita,Account payerAcct,long gaslimit,long gasprice) throws Exception{
-        byte[] params = new GovernanceGlobalParam(candidateFee,minInitStake,candidateNum,A,B,Yita).toArray();
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"updateGlobalParam",params, VmType.Native.value(),payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+//        byte[] params = new GovernanceGlobalParam(candidateFee,minInitStake,candidateNum,A,B,Yita).toArray();
+//        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"updateGlobalParam",params,payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+
+        List list = new ArrayList();
+        list.add(new Struct().add(candidateFee,minInitStake,candidateNum,A,B,Yita));
+        byte[] args = NativeBuildParams.createCodeParamsScript(list);
+        Transaction tx = sdk.vm().buildNativeParams(new Address(Helper.hexToBytes(contractAddress)),"updateGlobalParam",args,payerAcct.getAddressU160().toBase58(),gaslimit, gasprice);
         sdk.signTx(tx,new Account[][]{{payerAcct}});
         boolean b = sdk.getConnect().sendRawTransaction(tx.toHexString());
         if (b) {
@@ -393,7 +561,9 @@ public class Governance {
      * @throws Exception
      */
     public String callSplit(Account payerAcct,long gaslimit,long gasprice) throws Exception{
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"updateConfig",new byte[]{}, VmType.Native.value(),payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+//        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"updateConfig",new byte[]{},payerAcct.getAddressU160().toBase58(),gaslimit,gasprice);
+
+        Transaction tx = sdk.vm().buildNativeParams(new Address(Helper.hexToBytes(contractAddress)),"callSplit",new byte[]{},payerAcct.getAddressU160().toBase58(),gaslimit, gasprice);
         sdk.signTx(tx,new Account[][]{{payerAcct}});
         boolean b = sdk.getConnect().sendRawTransaction(tx.toHexString());
         if (b) {
@@ -402,59 +572,7 @@ public class Governance {
         return null;
     }
 }
-class PeerPoolItem implements Serializable{
-    int index;
-    String peerPubkey;
-    Address address;
-    int status;
-    long initPos;
-    long totalPos;
-    PeerPoolItem(){}
-    PeerPoolItem(int index,String peerPubkey,Address address,int status,long initPos,long totalPos){
-        this.index = index;
-        this.peerPubkey = peerPubkey;
-        this.address = address;
-        this.status = status;
-        this.initPos = initPos;
-        this.totalPos = totalPos;
-    }
 
-    @Override
-    public void deserialize(BinaryReader reader) throws IOException {
-        this.index = reader.readInt();
-        this.peerPubkey = reader.readVarString();
-        try {
-            this.address = reader.readSerializable(Address.class);
-        } catch (InstantiationException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        }
-        this.status = reader.readByte();
-        this.initPos = reader.readLong();
-        this.totalPos = reader.readLong();
-    }
-
-    @Override
-    public void serialize(BinaryWriter writer) throws IOException {
-        writer.writeInt(index);
-        writer.writeVarString(peerPubkey);
-        writer.writeSerializable(address);
-        writer.writeByte((byte)status);
-        writer.writeLong(initPos);
-        writer.writeLong(totalPos);
-    }
-    public Object Json(){
-        Map map = new HashMap();
-        map.put("index",index);
-        map.put("peerPubkey",peerPubkey);
-        map.put("address",address.toBase58());
-        map.put("status",status);
-        map.put("initPos",initPos);
-        map.put("totalPos",totalPos);
-        return map;
-    }
-}
 class GovernanceView implements Serializable{
     int view;
     int height;

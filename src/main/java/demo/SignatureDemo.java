@@ -5,10 +5,6 @@ import com.github.ontio.core.DataSignature;
 import com.github.ontio.sdk.info.AccountInfo;
 import com.github.ontio.sdk.wallet.Account;
 
-/**
- * @Description:
- * @date 2018/3/28
- */
 public class SignatureDemo {
     public static void main(String[] args) {
         try {
@@ -42,9 +38,9 @@ public class SignatureDemo {
         String ip = "http://127.0.0.1";
 //        String ip = "http://54.222.182.88;
 //        String ip = "http://101.132.193.149";
-        String restUrl = ip + ":" + "20384";
-        String rpcUrl = ip + ":" + "20386";
-        String wsUrl = ip + ":" + "20385";
+        String restUrl = ip + ":" + "20334";
+        String rpcUrl = ip + ":" + "20336";
+        String wsUrl = ip + ":" + "20335";
 
         OntSdk wm = OntSdk.getInstance();
         wm.setRpc(rpcUrl);

@@ -29,10 +29,6 @@ import com.github.ontio.sdk.exception.SDKException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-/**
- * @Description:
- * @date 2018/5/17
- */
 public class GlobalParams {
     private OntSdk sdk;
     private final String contractAddress = "ff00000000000000000000000000000000000004";
@@ -41,7 +37,7 @@ public class GlobalParams {
     }
 
     public boolean init() throws Exception{
-        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"init", new byte[]{}, VmType.Native.value(), null,0,0);
+        Transaction tx = sdk.vm().makeInvokeCodeTransaction(contractAddress,"init", new byte[]{}, null,0,0);
         return sdk.getConnect().sendRawTransaction(tx.toHexString());
     }
 

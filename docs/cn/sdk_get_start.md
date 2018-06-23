@@ -2,7 +2,7 @@
 
 ONT中有两种资产：原生资产和合约资产。原生资产如ont和ong。交易所对接时，主要处理这两种类型资产的充值、提现等操作。
 
-sdk文档：[sdk文档](https://github.com/ontio/ontology-java-sdk/tree/master/docs) 
+sdk文档：[sdk文档](https://github.com/ontio/ontology-java-sdk/tree/master/docs/cn) 
 
 本文大纲如下：
 * [Java sdk 使用说明](#java-sdk-使用说明)
@@ -69,7 +69,7 @@ AccountInfo info0 = ontSdk.getWalletMgr().createAccountInfo("passwordtest");
 AccountInfo info = ontSdk.getWalletMgr().createAccountInfoFromPriKey("passwordtest","e467a2a9c9f56b012c71cf2270df42843a9d7ff181934068b4a62bcdd570e8be");
 
 获取账号
-com.github.ontio.account.Account acct0 = ontSdk.getWalletMgr().getAccount(info.addressBase58,"passwordtest");
+com.github.ontio.account.Account acct0 = ontSdk.getWalletMgr().getAccount(info.addressBase58,"passwordtest",salt);
 
 ```
 
@@ -251,12 +251,33 @@ response:
     "Action": "getsmartcodeeventbyheight",
     "Desc": "SUCCESS",
     "Error": 0,
-    "Result": [
-        "20046da68ef6a91f6959caa798a5ac7660cc80cf4098921bc63604d93208a8ac",
-        "38e88c4f3e566737d45f25acbbfeaaebd226cc71aef16ba266c55bf6f8333966",
-        "724c6f7645e489e9405e6a9745e89a27c13e3a8563b71e71197fc80fe94023ab",
-        "923320009925c6468a483e5dad2989f590d21a9f8bc1230b8fc31e7459da32c8"
-    ],
+    "Result": [{
+	"GasConsumed": 0,
+	"Notify": [{
+		"States": ["transfer", "AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM", "APrfMuKrAQB5sSb5GF8tx96ickZQJjCvwG", 1000000000],
+		"ContractAddress": "0100000000000000000000000000000000000000"
+	}],
+	"TxHash": "b8a4f77e19fcae04faa576fbc71fa5a9775166d4485ce13f1ba5ff30ce264c52",
+	"State": 1
+     }, {
+	"GasConsumed": 0,
+	"Notify": [{
+		"States": ["transfer", "AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM", "AFmseVrdL9f9oyCzZefL9tG6UbvhUMqNMV", 1000000000000000000],
+		"ContractAddress": "0200000000000000000000000000000000000000"
+	}],
+	"TxHash": "7e8c19fdd4f9ba67f95659833e336eac37116f74ea8bf7be4541ada05b13503e",
+	"State": 1
+     }, {
+	"GasConsumed": 0,
+	"Notify": [],
+	"TxHash": "80617b4a97eb4266e5e38886f234f324d57587362b5039a01c45cf413461f53b",
+	"State": 1
+     }, {
+	"GasConsumed": 0,
+	"Notify": [],
+	"TxHash": "ede7ecc6e4e7e699b8ba1f07f2e5f8af3b65e70f126d82f7765d20a506080d2d",
+	"State": 0
+}],
     "Version": "1.0.0"
 }
 
@@ -308,7 +329,7 @@ Address recvAddr = acct1;
 构造转账交易：
 long amount = 1000;
 Transaction tx = ontSdk.nativevm().ont().makeTransfer(sender.toBase58(),recvAddr.toBase58(), amount,sender.toBase58(),30000,0);
-
+String hash = tx.hash().toString()
 
 对交易做签名：
 ontSdk.signTx(tx, new com.github.ontio.account.Account[][]{{acct0}});
@@ -317,9 +338,17 @@ ontSdk.signTx(tx, new com.github.ontio.account.Account[][]{{acct1, acct2}});
 //如果转出方与网络费付款人不是同一个地址，需要添加网络费付款人的签名
 
 
+发送预执行（可选）：
+Object obj = ontSdk.getConnect().sendRawTransactionPreExec(tx.toHexString());
+System.out.println(obj);
+成功返回：
+{"State":1,"Gas":30000,"Result":"01"}
+余额不足返回异常：
+com.github.ontio.network.exception.RestfulException: {"Action":"sendrawtransaction","Desc":"SMARTCODE EXEC ERROR","Error":47001,"Result":"","Version":"1.0.0"}
+
+
 发送交易：
 ontSdk.getConnect().sendRawTransaction(tx.toHexString());
-
 
 ```
 
@@ -342,6 +371,18 @@ ontSdk.addSign(tx,acct0);
 
 2.添加多签签名
 ontSdk.addMultiSign(tx,2,new com.github.ontio.account.Account[]{acct0,acct1});
+
+3.多签签名分多次签
+acct0签名：
+ontSdk.addMultiSign(tx,2,new com.github.ontio.account.Account[]{acct0});
+或
+tx.sigs[0].M = 2;
+tx.sigs[0].pubKeys[0] = acct0.serializePublicKey();
+tx.sigs[0].sigData[0] = tx.sign(acct0,ontSdk.defaultSignScheme);
+
+acct1签名：
+tx.sigs[0].pubKeys[1] = acct1.serializePublicKey();
+tx.sigs[0].sigData[1] = tx.sign(acct1,ontSdk.defaultSignScheme);
 
 ```
 
@@ -388,8 +429,7 @@ String txHex = tx.toHexString();
 接收方反序列化交易并签名：
 
 Transaction txRx = Transaction.deserializeFrom(Helper.hexToBytes(txHex));
-//查看交易中转账内容
-System.out.println(Transfers.deserializeFrom(Contract.deserializeFrom(txRx.code).args).json());
+
 
 签名：
 ontSdk.addSign(txRx,acct0);
@@ -401,7 +441,7 @@ ontSdk.addSign(txRx,acct0);
 
 ```
 节点启动时打开签名机服务：
-./ontology --clirpc
+go run SigSvr.go
 
 
 设置签名机URL：
@@ -416,8 +456,8 @@ String txHex = tx.toHexString();
 ontSdk.getSignServer().sendSigRawTx(txHex);
  
 请求多签交易： 
-String[] signs = new String[]{"1202039b196d5ed74a4d771ade78752734957346597b31384c3047c1946ce96211c2a7",
-                    "120203428daa06375b8dd40a5fc249f1d8032e578b5ebb5c62368fc6c5206d8798a966"};
+String[] signs = new String[]{"02039b196d5ed74a4d771ade78752734957346597b31384c3047c1946ce96211c2a7",
+                    "0203428daa06375b8dd40a5fc249f1d8032e578b5ebb5c62368fc6c5206d8798a966"};
 ontSdk.getSignServer().sendMultiSigRawTx(txHex,2,signs);
 
 请求构造转账交易并签名：

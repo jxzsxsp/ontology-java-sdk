@@ -191,7 +191,7 @@ public class ConnectMgr {
 
     public Object getContract(String hash) throws ConnectorException, IOException {
         hash = hash.replace("0x", "");
-        return connector.getContract(hash);
+        return connector.getContractJson(hash);
     }
 
     public Object getContractJson(String hash) throws ConnectorException, IOException {
@@ -233,6 +233,25 @@ public class ConnectMgr {
     public Object getMemPoolTxState(String hash) throws ConnectorException, IOException {
         hash = hash.replace("0x", "");
         return connector.getMemPoolTxState(hash);
+    }
+    public String getVersion() throws ConnectorException, IOException {
+        return connector.getVersion();
+    }
+    public Object waitResult(String hash) throws Exception {
+        for (int i = 0; i < 20; i++) {
+            try {
+                Thread.sleep(3000);
+                Object obj = connector.getSmartCodeEvent(hash);
+                if(((Map)obj).get("Notify") != null){
+                    return obj;
+                }
+            } catch (Exception e) {
+                if(!e.getMessage().contains("INVALID TRANSACTION")){
+                    break;
+                }
+            }
+        }
+        throw new SDKException(ErrorCode.ParamError);
     }
 }
 

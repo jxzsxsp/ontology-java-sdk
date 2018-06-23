@@ -54,6 +54,11 @@ public class Control {
     public Map parameters = new HashMap() ;
     public String id = "";
     public String key = "";
+    public String salt = "";
+    public String hash = "sha256";
+    @JSONField(name = "enc-alg")
+    public String encAlg = "aes-256-gcm";
+    public String address = "";
 }
 ```
 
@@ -106,7 +111,7 @@ ontSdk.getConnect().sendRawTransaction(tx);
 
 
 ```
-Identity identity = ontSdk.getWalletMgr().importIdentity(encriptPrivateKey,password);
+Identity identity = ontSdk.getWalletMgr().importIdentity(encriptPrivateKey,password,salt,address);
 //写入钱包      
 ontSdk.getWalletMgr().writeWallet();
 ```
@@ -115,6 +120,8 @@ ontSdk.getWalletMgr().writeWallet();
 参数说明：
 encriptPrivateKey: 加密后的私钥
 password： 加密私钥使用的密码
+salt: 解密私钥用的参数
+address: 账户地址base58编码
 
 * 5 查询链上身份
 
@@ -174,13 +181,14 @@ ontSdk.getWalletMgr().getWallet().setDefaultIdentity(ontid);
 
 ```
 //添加或者更新属性
-String sendAddAttributes(String ontid, String password, Attribute[] attributes,Account payerAcct,long gaslimit,long gasprice)
+String sendAddAttributes(String ontid, String password,byte[] salt， Attribute[] attributes,Account payerAcct,long gaslimit,long gasprice)
 ```
 
 
 | 参数      | 字段   | 类型  | 描述 |             说明 |
 | -----    | ------- | ------ | ------------- | ----------- |
 | 输入参数   | password| String | 数字身份密码 | 必选，私钥解密的密码 |
+|           |salt     | byte[] |  |    必选  |
 |           | ontid    | String | 数字身份id  | 必选，身份Id |
 |           | attributes | Attribute[]| 属性数组  | 必选 |
 |           | payerAcct    | Account | 交易费用支付者账户       |  必选， |
@@ -194,13 +202,13 @@ String sendAddAttributes(String ontid, String password, Attribute[] attributes,A
 
 将构造好的交易发送给服务器，让服务器进行交易费用账号的签名操作。
 ```
-Transaction makeAddAttributes(String ontid, String password, Attribute[] attributes,String payer,
+Transaction makeAddAttributes(String ontid, String password, byte[] salt,Attribute[] attributes,String payer,
                                           long gaslimit,long gasprice)
 ```
 
 示例代码
 ```
-Transaction tx = ontSdk.nativevm().ontId().makeAddAttributes(ontid,password,attributes,payer,gaslimit,0);
+Transaction tx = ontSdk.nativevm().ontId().makeAddAttributes(ontid,password,salt,attributes,payer,gaslimit,0);
 ontSdk.signTx(tx,identity.ontid,password);
 ontSdk.getConnect().sendRawTransaction(tx);
 ```
@@ -210,13 +218,14 @@ ontSdk.getConnect().sendRawTransaction(tx);
 方法一
 
 ```
-String sendRemoveAttribute(String ontid,String password,String path,Account payerAcct,long gaslimit,long gasprice)
+String sendRemoveAttribute(String ontid,String password,byte[] salt,String path,Account payerAcct,long gaslimit,long gasprice)
 ```
 
 
 | 参数      | 字段   | 类型  | 描述 |             说明 |
 | ----- | ------- | ------ | ------------- | ----------- |
 | 输入参数 | password| String | 数字身份密码 | 必选 |
+|        | salt| byte[] |  | required |
 |        | ontid    | String | 数字身份ID   | 必选，身份Id |
 |        | path    | byte[]  | path       | 必选，path |
 |        | payer    | String  | payer       | 必选，payer |
@@ -229,12 +238,12 @@ String sendRemoveAttribute(String ontid,String password,String path,Account paye
 
 将构造好的交易发送给服务器，让服务器进行交易费用账号的签名操作。
 ```
-Transaction makeRemoveAttribute(String ontid,String password,String path,String payer,long gaslimit,long gasprice)
+Transaction makeRemoveAttribute(String ontid,String password,salt,String path,String payer,long gaslimit,long gasprice)
 ```
 
 示例代码：
 ```
-Transaction tx = ontSdk.nativevm().ontId().makeRemoveAttribute(ontid,password,path,payer,gaslimit,0);
+Transaction tx = ontSdk.nativevm().ontId().makeRemoveAttribute(ontid,password,salt,path,payer,gaslimit,0);
 ontSdk.signTx(tx,identity.ontid,password);
 ontSdk.getConnect().sendRawTransaction(tx);
 ```
@@ -244,13 +253,14 @@ ontSdk.getConnect().sendRawTransaction(tx);
 方法一
 
 ```
-String sendAddPubKey(String ontid, String password, String newpubkey,Account payerAcct,long gaslimit,long gasprice)
+String sendAddPubKey(String ontid, String password,byte[] salt, String newpubkey,Account payerAcct,long gaslimit,long gasprice)
 ```
 
 
 | 参数      | 字段   | 类型  | 描述 |             说明 |
 | ----- | ------- | ------ | ------------- | ----------- |
 | 输入参数 | password| String | 数字身份密码 | 必选 |
+|        | salt| byte[] |  | required |
 |        | ontid    | String | 数字身份ID   | 必选，身份Id |
 |        | newpubkey| String  |公钥       | 必选， newpubkey|
 |        | payerAcct    | Account  | Payment transaction account  | 必选，payer |
@@ -264,13 +274,13 @@ String sendAddPubKey(String ontid, String password, String newpubkey,Account pay
 将构造好的交易发送给服务器，让服务器进行交易费用账号的签名操作。
 
 ```
-Transaction makeAddPubKey(String ontid,String password,String newpubkey,String payer,long gaslimit,long gasprice)
+Transaction makeAddPubKey(String ontid,String password,byte[] salt,String newpubkey,String payer,long gaslimit,long gasprice)
 ```
 参数说明请参考方法一sendAddPubKey
 
 示例代码
 ```
-Transaction tx = ontSdk.nativevm().ontId().makeAddPubKey(ontid,password,newpubkey,payer,gaslimit,gasprice);
+Transaction tx = ontSdk.nativevm().ontId().makeAddPubKey(ontid,password,byte[] salt,newpubkey,payer,gaslimit,gasprice);
 ontSdk.signTx(tx,identity.ontid,password);
 ontSdk.getConnect().sendRawTransaction(tx);
 ```
@@ -278,7 +288,7 @@ ontSdk.getConnect().sendRawTransaction(tx);
 方法三（recovery机制）
 recovery可以为ontid添加公钥
 ```
-String sendAddPubKey(String ontid,String recoveryAddr, String password, String newpubkey,Account payerAcct,long gaslimit,long gasprice)
+String sendAddPubKey(String ontid,String recoveryAddr, String password, byte[] salt,String newpubkey,Account payerAcct,long gaslimit,long gasprice)
 ```
 
 | 参数      | 字段   | 类型  | 描述 |             说明 |
@@ -286,6 +296,7 @@ String sendAddPubKey(String ontid,String recoveryAddr, String password, String n
 | 输入参数 | ontid    | String | 数字身份ID   | 必选，身份Id |
 |        | recoveryAddr| String | recovery地址 | 必选 |
 |        | password| String | recovery密码 | 必选 |
+|        | salt| byte[] |  | required |
 |        | newpubkey| String  |公钥       | 必选， newpubkey|
 |        | payer    | String  | payer       | 必选，payer |
 |        | payerpwd | String  | 支付交易费用的账户地址  | 必选 |
@@ -297,7 +308,7 @@ String sendAddPubKey(String ontid,String recoveryAddr, String password, String n
 方法四（recovery机制）
 
 ```
-Transaction makeAddPubKey(String ontid,String recoveryAddr,String password,String newpubkey,
+Transaction makeAddPubKey(String ontid,String recoveryAddr,String password,byte[] salt,String newpubkey,
                                           String payer,long gaslimit,long gasprice)
 ```
 
@@ -309,13 +320,14 @@ Transaction makeAddPubKey(String ontid,String recoveryAddr,String password,Strin
 方法一
 
 ```
-String sendRemovePubKey(String ontid, String password, String removePubkey,Account payerAcct,long gaslimit,long gasprice)
+String sendRemovePubKey(String ontid, String password,byte[] salt, String removePubkey,Account payerAcct,long gaslimit,long gasprice)
 ```
 
 
 | 参数      | 字段   | 类型  | 描述 |             说明 |
 | ----- | ------- | ------ | ------------- | ----------- |
 | 输入参数 | password| String | 数字身份密码 | 必选 |
+|        | salt| byte[] |  | required |
 |        | ontid    | String | 数字身份ID   | 必选，身份Id |
 |        | removePubkey| String  |公钥       | 必选， removePubkey|
 |        | payer    | String  | payer       | 必选，payer |
@@ -329,14 +341,14 @@ String sendRemovePubKey(String ontid, String password, String removePubkey,Accou
 将构造好的交易发送给服务器，让服务器进行交易费用账号的签名操作。
 
 ```
-Transaction tx = ontSdk.nativevm().ontId().makeRemovePubKey(ontid,password,removePubkey,payer,gas);
-ontSdk.signTx(tx,identity.ontid.replace(Common.didont,""),password);
+Transaction tx = ontSdk.nativevm().ontId().makeRemovePubKey(ontid,password,salt,removePubkey,payer,gas);
+ontSdk.signTx(tx,identity.ontid.replace(Common.didont,""),password,salt);
 ontSdk.getConnect().sendRawTransaction(tx);
 ```
 
 方法三（recovery机制）
 ```
-String sendRemovePubKey(String ontid, String recoveryAddr,String password, String removePubkey,Account payerAcct,long gaslimit,long gasprice)
+String sendRemovePubKey(String ontid, String recoveryAddr,String password, byte[] salt,String removePubkey,Account payerAcct,long gaslimit,long gasprice)
 ```
 
 | 参数      | 字段   | 类型  | 描述 |             说明 |
@@ -344,6 +356,7 @@ String sendRemovePubKey(String ontid, String recoveryAddr,String password, Strin
 | 输入参数 | ontid    | String | 数字身份ID   | 必选，身份Id |
 |        | recoveryAddr| String | recovery地址 | 必选 |
 |        | password| String | recovery密码 | 必选 |
+|        | salt| byte[] |  | required |
 |        | newpubkey| String  |公钥       | 必选， newpubkey|
 |        | payerAcct    | Account  | Payment transaction account | 必选，payer |
 |        | gaslimit   | long | gaslimit     | 必选 |
@@ -353,7 +366,7 @@ String sendRemovePubKey(String ontid, String recoveryAddr,String password, Strin
 
 方法四（recovery机制）
 ```
-Transaction makeRemovePubKey(String ontid,String recoveryAddr, String password, String removePubkey,String payer,
+Transaction makeRemovePubKey(String ontid,String recoveryAddr, String password,byte[] salt, String removePubkey,String payer,
                                           long gaslimit,long gasprice)
 ```
 
@@ -364,12 +377,13 @@ Transaction makeRemovePubKey(String ontid,String recoveryAddr, String password, 
 方法一
 
 ```
-String sendAddRecovery(String ontid, String password, String recoveryAddr,Account payerAcct,long gaslimit,long gasprice)
+String sendAddRecovery(String ontid, String password,byte[] salt, String recoveryAddr,Account payerAcct,long gaslimit,long gasprice)
 ```
 
 | 参数      | 字段   | 类型  | 描述 |             说明 |
 | ----- | ------- | ------ | ------------- | ----------- |
 | 输入参数 | password| String | 数字身份密码 | 必选 |
+|        | salt| byte[] | | required |
 |        | ontid    | String | 数字身份ID   | 必选，身份Id |
 |        | recoveryAddr| String  |recovery账户地址 | 必选，recovery|
 |        | payerAcct    | Account  | payerAcct  | 必选，payer |
@@ -382,13 +396,13 @@ String sendAddRecovery(String ontid, String password, String recoveryAddr,Accoun
 
 将构造好的交易发送给服务器，让服务器进行交易费用账号的签名操作。
 ```
-Transaction makeAddRecovery(String ontid, String password, String recoveryAddr,String payer,long gaslimit,long gasprice)
+Transaction makeAddRecovery(String ontid, String password,byte[] salt, String recoveryAddr,String payer,long gaslimit,long gasprice)
 ```
 
 示例
 ```
-Transaction tx = ontSdk.nativevm().ontId().makeAddRecovery(ontid,password,recovery,payer,gas);
-ontSdk.signTx(tx,identity.ontid.replace(Common.didont,""),password);
+Transaction tx = ontSdk.nativevm().ontId().makeAddRecovery(ontid,password,salt,recovery,payer,gas);
+ontSdk.signTx(tx,identity.ontid.replace(Common.didont,""),password,salt);
 ontSdk.getConnect().sendRawTransaction(tx);
 ```
 
@@ -396,16 +410,17 @@ ontSdk.getConnect().sendRawTransaction(tx);
 
 方法一
 ```
-String sendChangeRecovery(String ontid, String newRecovery, String oldRecovery, String password,long gaslimit,long gasprice)
+String sendChangeRecovery(String ontid, String newRecovery, String oldRecovery, String password,,byte[] salt,long gaslimit,long gasprice)
 ```
 
 | 参数      | 字段   | 类型  | 描述 |             说明 |
 | ----- | ------- | ------ | ------------- | ----------- |
-| 输入参数 | password| String | 数字身份密码 | 必选 |
-|        | ontid    | String | 数字身份ID   | 必选，身份Id |
+| 输入参数 |ontid    | String | 数字身份ID   | 必选，身份Id |
 |        | newRecovery| String  |newRecovery账户地址 | 必选，newRecovery|
 |        | oldRecovery| String  |oldRecovery账户地址 | 必选，oldRecovery|
 |        | oldRecovery password | String  | oldRecovery password  | 必选 |
+|        | password| String | 数字身份密码 | 必选 |
+|        | salt| byte[] | | required |
 |        | gaslimit   | long | gaslimit     | 必选 |
 |        | gasprice   | long | gasprice     | 必选 |
 | 输出参数 | txhash   | String  | 交易hash  | 交易hash是64位字符串 |
@@ -413,7 +428,7 @@ String sendChangeRecovery(String ontid, String newRecovery, String oldRecovery, 
 
 方法二
 ```
-Transaction makeChangeRecovery(String ontid, String newRecovery, String oldRecovery, String password,long gaslimit,long gasprice)
+Transaction makeChangeRecovery(String ontid, String newRecovery, String oldRecovery, String password,byte[] salt,long gaslimit,long gasprice)
 ```
 
 参数说明请参考上面的方法一
@@ -479,7 +494,7 @@ class Payload {
 
 ### 2 可信申明接口列表
 
-1. createOntIdClaim(String signerOntid, String password, String context, Map<String, Object> claimMap, Map metaData,Map clmRevMap,long expire)
+1. createOntIdClaim(String signerOntid, String password,byte[] salt, String context, Map<String, Object> claimMap, Map metaData,Map clmRevMap,long expire)
 
      功能说明： 创建可信声明
 
@@ -487,6 +502,7 @@ class Payload {
     | ----- | ------- | ------ | ------------- | ----------- |
     | 输入参数 | signerOntid| String | 签名者ontid | 必选 |
     |        | password    | String | 签名者密码   | 必选 |
+    |        | salt        | byte[] | 解密需要的参数|必选|
     |        | context| String  |指定申明内容定义文档URI，其定义了每个字段的含义和值得类型 | 必选|
     |        | claimMap| Map  |声明的内容 | 必选|
     |        | metaData   | Map | 申明发行者和申请者ontid | 必选 |
@@ -522,7 +538,7 @@ map.put("Subject", dids.get(1).ontid);
 Map clmRevMap = new HashMap();
 clmRevMap.put("typ","AttestContract");
 clmRevMap.put("addr",dids.get(1).ontid.replace(Common.didont,""));
-String claim = ontSdk.nativevm().ontId().createOntIdClaim(dids.get(0).ontid,password, "claim:context", map, map,clmRevMap,System.currentTimeMillis()/1000 +100000);
+String claim = ontSdk.nativevm().ontId().createOntIdClaim(dids.get(0).ontid,password,salt, "claim:context", map, map,clmRevMap,System.currentTimeMillis()/1000 +100000);
 ```
 
 
@@ -546,14 +562,14 @@ boolean b = ontSdk.nativevm().ontId().verifyOntIdClaim(claim);
 ```
 //注册ontid
 Identity identity = ontSdk.getWalletMgr().createIdentity(password);
-ontSdk.nativevm().ontId().sendRegister(identity2,password,payerAcc.address,password,ontSdk.DEFAULT_GAS_LIMIT,0);
+ontSdk.nativevm().ontId().sendRegister(identity2,password,salt,payerAcc,ontSdk.DEFAULT_GAS_LIMIT,0);
 String ontid = ident.ontid;
 //更新属性
 Map recordMap = new HashMap();
 recordMap.put("key0", "world0");
 recordMap.put("keyNum", 1234589);
 recordMap.put("key2", false);
-String hash = ontSdk.nativevm().ontId().sendAddAttributes(dids.get(0).ontid,password,attributes,payerAcc.address,password,ontSdk.DEFAULT_GAS_LIMIT,0);
+String hash = ontSdk.nativevm().ontId().sendAddAttributes(dids.get(0).ontid,password,attributes,payerAcc,ontSdk.DEFAULT_GAS_LIMIT,0);
 ```
 
 > Note: 当不存在该属性时，调用sendAddAttributes方法，会增加相应的属性，当属性存在时，会更新相应属性。

@@ -156,7 +156,7 @@ public class RestClient extends AbstractConnector {
         String rs = api.getTransaction(txhash, true);
         Result rr = JSON.parseObject(rs, Result.class);
         if (rr.Error == 0) {
-            return Transaction.deserializeFrom(Helper.hexToBytes((String) rr.Result)).json();
+            return JSON.toJSONString(Transaction.deserializeFrom(Helper.hexToBytes((String) rr.Result)).json());
         }
         throw new RestfulException(to(rr));
     }
@@ -194,7 +194,7 @@ public class RestClient extends AbstractConnector {
 
     @Override
     public Object getContractJson(String hash) throws RestfulException {
-        String rs = api.getContract(hash);
+        String rs = api.getContractJson(hash);
         Result rr = JSON.parseObject(rs, Result.class);
         if (rr.Error == 0) {
             return rr.Result;
@@ -276,6 +276,15 @@ public class RestClient extends AbstractConnector {
         Result rr = JSON.parseObject(rs, Result.class);
         if (rr.Error == 0) {
             return rr.Result;
+        }
+        throw new RestfulException(to(rr));
+    }
+    @Override
+    public String getVersion() throws ConnectorException, IOException{
+        String rs = api.getVersion();
+        Result rr = JSON.parseObject(rs, Result.class);
+        if (rr.Error == 0) {
+            return (String)rr.Result;
         }
         throw new RestfulException(to(rr));
     }
