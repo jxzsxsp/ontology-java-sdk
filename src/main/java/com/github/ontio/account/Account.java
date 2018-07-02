@@ -172,7 +172,9 @@ public class Account {
         Arrays.fill(data, (byte) 0);
         return privateKey;
     }
-
+    public SignatureScheme getSignatureScheme(){
+        return signatureScheme;
+    }
     public KeyType getKeyType() {
         return keyType;
     }
@@ -332,6 +334,8 @@ public class Account {
         }
         if(data.length == 33){
             this.keyType = KeyType.ECDSA;
+        } else if(data.length == 35) {
+            this.keyType = KeyType.fromLabel(data[0]);
         }
         this.privateKey = null;
         this.publicKey = null;
@@ -350,7 +354,7 @@ public class Account {
                 this.publicKey = kf0.generatePublic(pubSpec0);
                 break;
             case SM2:
-                this.keyType = KeyType.fromLabel(data[0]);
+//                this.keyType = KeyType.fromLabel(data[0]);
                 Curve c = Curve.fromLabel(data[1]);
                 this.curveParams = new Object[]{c.toString()};
                 ECNamedCurveParameterSpec spec = ECNamedCurveTable.getParameterSpec(c.toString());

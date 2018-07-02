@@ -19,10 +19,13 @@
 
 package com.github.ontio.common;
 
+import com.github.ontio.core.program.Program;
 import com.github.ontio.core.scripts.ScriptBuilder;
 import com.github.ontio.core.scripts.ScriptOp;
 import com.github.ontio.crypto.Base58;
 import com.github.ontio.crypto.Digest;
+import com.github.ontio.crypto.ECC;
+import com.github.ontio.crypto.KeyType;
 import com.github.ontio.io.BinaryWriter;
 import com.github.ontio.sdk.exception.SDKException;
 
@@ -30,6 +33,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Arrays;
+import org.bouncycastle.math.ec.ECPoint;
+
+import static com.github.ontio.crypto.KeyType.ECDSA;
+import static com.github.ontio.crypto.KeyType.SM2;
 
 /**
  * Custom type which inherits base class defines 20-bit data,
@@ -86,27 +93,11 @@ public class Address extends UIntBase implements Comparable<Address> {
         ScriptBuilder sb = new ScriptBuilder();
         sb.push(publicKey);
         sb.add(ScriptOp.OP_CHECKSIG);
-        return new Address(Digest.hash160(sb.toArray()));
+        return Address.toScriptHash(sb.toArray());
     }
 
     public static Address addressFromMultiPubKeys(int m, byte[]... publicKeys) throws Exception {
-        if (m <= 0 || m > publicKeys.length || publicKeys.length > 24) {
-            throw new SDKException(ErrorCode.ParamError);
-        }
-        try (ScriptBuilder sb = new ScriptBuilder()) {
-            sb.push(BigInteger.valueOf(m));
-            publicKeys = Arrays.stream(publicKeys).sorted((o1, o2) -> {
-                return Helper.toHexString(o1).compareTo(Helper.toHexString(o2));
-            }).toArray(byte[][]::new);
-
-            for (byte[] publicKey : publicKeys) {
-                sb.push(publicKey);
-            }
-            System.out.println(Helper.toHexString(sb.toArray()));
-            sb.push(BigInteger.valueOf(publicKeys.length));
-            sb.add(ScriptOp.OP_CHECKMULTISIG);
-            return new Address(Digest.hash160(sb.toArray()));
-        }
+        return Address.toScriptHash(Program.ProgramFromMultiPubKey(m,publicKeys));
     }
 
     public static Address decodeBase58(String address) throws SDKException {

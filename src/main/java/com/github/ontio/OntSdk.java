@@ -24,6 +24,7 @@ import com.github.ontio.common.Common;
 import com.github.ontio.common.ErrorCode;
 import com.github.ontio.common.Helper;
 import com.github.ontio.core.DataSignature;
+import com.github.ontio.core.program.Program;
 import com.github.ontio.core.transaction.Transaction;
 import com.github.ontio.core.asset.Sig;
 import com.github.ontio.crypto.Digest;
@@ -34,6 +35,8 @@ import com.github.ontio.smartcontract.NativeVm;
 import com.github.ontio.smartcontract.NeoVm;
 import com.github.ontio.smartcontract.Vm;
 import com.github.ontio.smartcontract.WasmVm;
+
+import java.util.Arrays;
 
 /**
  * Ont Sdk
@@ -55,6 +58,7 @@ public class OntSdk {
     private static OntSdk instance = null;
     public SignatureScheme defaultSignScheme = SignatureScheme.SHA256WITHECDSA;
     public long DEFAULT_GAS_LIMIT = 30000;
+    public long DEFAULT_DEPLOY_GAS_LIMIT = 20000000;
     public static synchronized OntSdk getInstance(){
         if(instance == null){
             instance = new OntSdk();
@@ -196,6 +200,10 @@ public class OntSdk {
     public Transaction addSign(Transaction tx,Account acct) throws Exception {
         if(tx.sigs == null){
             tx.sigs = new Sig[0];
+        } else {
+            if (tx.sigs.length >= Common.TX_MAX_SIG_SIZE) {
+                throw new SDKException(ErrorCode.ParamErr("the number of transaction signatures should not be over 16"));
+            }
         }
         Sig[] sigs = new Sig[tx.sigs.length + 1];
         for(int i= 0; i< tx.sigs.length; i++){
@@ -206,14 +214,43 @@ public class OntSdk {
         sigs[tx.sigs.length].pubKeys = new byte[1][];
         sigs[tx.sigs.length].sigData = new byte[1][];
         sigs[tx.sigs.length].pubKeys[0] = acct.serializePublicKey();
-        sigs[tx.sigs.length].sigData[0] = tx.sign(acct,defaultSignScheme);
+        sigs[tx.sigs.length].sigData[0] = tx.sign(acct,acct.getSignatureScheme());
         tx.sigs = sigs;
         return tx;
     }
 
-    public Transaction addMultiSign(Transaction tx,int M, Account[] acct) throws Exception {
+    /**
+     *
+     * @param tx
+     * @param M
+     * @param pubKeys
+     * @param acct
+     * @return
+     * @throws Exception
+     */
+    public Transaction addMultiSign(Transaction tx,int M,byte[][] pubKeys, Account acct) throws Exception {
+        pubKeys = Program.sortPublicKeys(pubKeys);
         if (tx.sigs == null) {
             tx.sigs = new Sig[0];
+        } else {
+            if (tx.sigs.length  > Common.TX_MAX_SIG_SIZE || M > pubKeys.length || M <= 0 || acct == null || pubKeys == null) {
+                throw new SDKException(ErrorCode.ParamError);
+            }
+            for (int i = 0; i < tx.sigs.length; i++) {
+                if(Arrays.equals(tx.sigs[i].pubKeys,pubKeys)){
+                    if (tx.sigs[i].sigData.length + 1 > pubKeys.length) {
+                        throw new SDKException(ErrorCode.ParamErr("too more sigData"));
+                    }
+                    int len = tx.sigs[i].sigData.length;
+                    byte[][] sigData = new byte[len+1][];
+                    for (int j = 0; j < tx.sigs[i].sigData.length; j++) {
+                        sigData[j] = tx.sigs[i].sigData[j];
+                    }
+                    sigData[len] = tx.sign(acct, acct.getSignatureScheme());
+                    tx.sigs[i].sigData = sigData;
+                    return tx;
+                }
+            }
         }
         Sig[] sigs = new Sig[tx.sigs.length + 1];
         for (int i = 0; i < tx.sigs.length; i++) {
@@ -221,12 +258,10 @@ public class OntSdk {
         }
         sigs[tx.sigs.length] = new Sig();
         sigs[tx.sigs.length].M = M;
-        sigs[tx.sigs.length].pubKeys = new byte[acct.length][];
-        sigs[tx.sigs.length].sigData = new byte[acct.length][];
-        for (int i = 0; i < acct.length; i++) {
-            sigs[tx.sigs.length].pubKeys[i] = acct[i].serializePublicKey();
-            sigs[tx.sigs.length].sigData[i] = tx.sign(acct[i], defaultSignScheme);
-        }
+        sigs[tx.sigs.length].pubKeys = pubKeys;
+        sigs[tx.sigs.length].sigData = new byte[1][];
+        sigs[tx.sigs.length].sigData[0] = tx.sign(acct, acct.getSignatureScheme());
+
         tx.sigs = sigs;
         return tx;
     }
@@ -242,6 +277,9 @@ public class OntSdk {
      * @return
      */
     public Transaction signTx(Transaction tx, Account[][] accounts) throws Exception{
+        if (accounts.length > Common.TX_MAX_SIG_SIZE) {
+            throw new SDKException(ErrorCode.ParamErr("the number of transaction signatures should not be over 16"));
+        }
         Sig[] sigs = new Sig[accounts.length];
         for (int i = 0; i < accounts.length; i++) {
             sigs[i] = new Sig();
@@ -249,7 +287,7 @@ public class OntSdk {
             sigs[i].sigData = new byte[accounts[i].length][];
             for (int j = 0; j < accounts[i].length; j++) {
                 sigs[i].M++;
-                byte[] signature = tx.sign(accounts[i][j], defaultSignScheme);
+                byte[] signature = tx.sign(accounts[i][j], accounts[i][j].getSignatureScheme());
                 sigs[i].pubKeys[j] = accounts[i][j].serializePublicKey();
                 sigs[i].sigData[j] = signature;
             }
@@ -267,6 +305,9 @@ public class OntSdk {
      * @throws SDKException
      */
     public Transaction signTx(Transaction tx, Account[][] accounts, int[] M) throws Exception {
+        if (accounts.length > Common.TX_MAX_SIG_SIZE) {
+            throw new SDKException(ErrorCode.ParamErr("the number of transaction signatures should not be over 16"));
+        }
         if (M.length != accounts.length) {
             throw new SDKException(ErrorCode.ParamError);
         }

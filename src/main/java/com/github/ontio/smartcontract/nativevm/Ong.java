@@ -84,6 +84,40 @@ public class Ong {
     }
 
     /**
+     *
+     * @param M
+     * @param pubKeys
+     * @param sendAccts
+     * @param recvAddr
+     * @param amount
+     * @param payerAcct
+     * @param gaslimit
+     * @param gasprice
+     * @return
+     * @throws Exception
+     */
+    public String sendTransferFromMultiSignAddr(int M,byte[][] pubKeys,Account[] sendAccts,String recvAddr, long amount, Account payerAcct, long gaslimit, long gasprice) throws Exception {
+        if (sendAccts == null || sendAccts.length <= 1 || payerAcct == null ) {
+            throw new SDKException(ErrorCode.ParamErr("parameters should not be null"));
+        }
+        if (amount <= 0 || gasprice < 0 || gaslimit < 0) {
+            throw new SDKException(ErrorCode.ParamErr("amount or gasprice or gaslimit should not be less than 0"));
+        }
+
+        Address multiAddr = Address.addressFromMultiPubKeys(sendAccts.length,pubKeys);
+        Transaction tx = makeTransfer(multiAddr.toBase58(), recvAddr, amount, payerAcct.getAddressU160().toBase58(), gaslimit, gasprice);
+        for(int i=0;i<sendAccts.length;i++){
+            sdk.addMultiSign(tx, M, pubKeys, sendAccts[i]);
+        }
+        sdk.addSign(tx, payerAcct);
+        boolean b = sdk.getConnect().sendRawTransaction(tx.toHexString());
+        if (b) {
+            return tx.hash().toString();
+        }
+        return null;
+    }
+
+    /**
      * @param sendAddr
      * @param recvAddr
      * @param amount
@@ -147,7 +181,7 @@ public class Ong {
         if (res==null||res.equals("")) {
             return 0;
         }
-        return Long.valueOf(res, 16);
+        return Long.valueOf(Helper.reverse(res), 16);
     }
 
     /**
@@ -170,7 +204,7 @@ public class Ong {
         if (res==null||res.equals("")) {
             return 0;
         }
-        return Long.valueOf(res, 16);
+        return Long.valueOf(Helper.reverse(res), 16);
     }
 
     /**
@@ -319,7 +353,7 @@ public class Ong {
         if (("").equals(res)) {
             return 0;
         }
-        return Long.valueOf(res, 16);
+        return Long.valueOf(Helper.reverse(res), 16);
     }
 
     /**
@@ -333,7 +367,7 @@ public class Ong {
         if (res==null||res.equals("")) {
             return 0;
         }
-        return Long.valueOf(res, 16);
+        return Long.valueOf(Helper.reverse(res), 16);
     }
 
     /**
