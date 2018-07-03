@@ -13,10 +13,10 @@ public class Base {
     public static Object lock = new Object();
 
     public static OntSdk getOntSdk() throws Exception {
-        String ip = "http://es.xiaoyuechen.com";
-        String restUrl = ip + ":" + "20384";
-        String rpcUrl = ip + ":" + "20386";
-        String wsUrl = ip + ":" + "20385";
+        String ip = "http://localhost";
+        String restUrl = ip + ":" + "20334";
+        String rpcUrl = ip + ":" + "20336";
+        String wsUrl = ip + ":" + "20335";
 
         OntSdk wm = OntSdk.getInstance();
         wm.setRpc(rpcUrl);
@@ -31,9 +31,9 @@ public class Base {
 
     public static OntSdk getTestNet() throws Exception {
         String ip = "http://polaris1.ont.io";
-        String restUrl = ip + ":" + "20384";
-        String rpcUrl = ip + ":" + "20386";
-        String wsUrl = ip + ":" + "20385";
+        String restUrl = ip + ":" + "20334";
+        String rpcUrl = ip + ":" + "20336";
+        String wsUrl = ip + ":" + "20335";
 
         OntSdk wm = OntSdk.getInstance();
         wm.setRpc(rpcUrl);
