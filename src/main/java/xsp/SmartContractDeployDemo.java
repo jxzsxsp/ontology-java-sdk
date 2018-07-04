@@ -34,12 +34,16 @@ public class SmartContractDeployDemo {
                     "jxzsxsp@qq.com",
                     "My first smart contract",
                     account.getAddressU160().toBase58(),
-                    30000L,
-                    0L);
+                    20020000L,
+                    500L);
 
             ontSdk.signTx(tx, new Account[][]{{account}});
             String txHex = Helper.toHexString(tx.toArray());
             System.out.println(txHex);
+
+            Object gasLimitResult = ontSdk.getConnect().sendRawTransactionPreExec(txHex);
+            System.out.println(gasLimitResult);
+
             Object result = ontSdk.getConnect().sendRawTransaction(txHex);
             System.out.println(result);
 
